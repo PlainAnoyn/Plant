@@ -1,0 +1,123 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import Link from 'next/link';
+import Button from '@/components/ui/Button';
+
+export default function SignupPage() {
+  const router = useRouter();
+  const { signup } = useAuth();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      await signup(name, email, password);
+      router.push('/cart');
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message || 'Signup failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-cream-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-4xl font-bold text-emerald-900">
+            Create your account
+          </h2>
+          <p className="mt-2 text-center text-sm text-emerald-700">
+            Or{' '}
+            <Link href="/login" className="font-medium text-emerald-600 hover:text-emerald-500">
+              sign in to existing account
+            </Link>
+          </p>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              {error}
+            </div>
+          )}
+          <div className="rounded-md shadow-sm space-y-4">
+            <div>
+              <label htmlFor="name" className="sr-only">
+                Full Name
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                autoComplete="name"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="appearance-none rounded-lg relative block w-full px-3 py-3 border border-emerald-300 placeholder-emerald-400 text-emerald-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm"
+                placeholder="Full Name"
+              />
+            </div>
+            <div>
+              <label htmlFor="email" className="sr-only">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="appearance-none rounded-lg relative block w-full px-3 py-3 border border-emerald-300 placeholder-emerald-400 text-emerald-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm"
+                placeholder="Email address"
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="sr-only">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="new-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="appearance-none rounded-lg relative block w-full px-3 py-3 border border-emerald-300 placeholder-emerald-400 text-emerald-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm"
+                placeholder="Password (min. 6 characters)"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              className="w-full"
+              loading={loading}
+              disabled={loading}
+            >
+              Create account
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+

@@ -1,27 +1,190 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/lib/mongodb';
-import Plant from '@/models/Plant';
+
+// Mock plant data
+const mockPlants: any = {
+  '1': {
+    _id: '1',
+    name: 'Monstera Deliciosa',
+    description: 'A beautiful tropical plant with large, glossy leaves that have natural holes. Perfect for indoor spaces.',
+    price: 29.99,
+    category: 'Indoor',
+    imageUrl: 'https://images.unsplash.com/photo-1519336056116-9e7e0b82d6e9?w=800&h=800&fit=crop&q=80',
+    stock: 15,
+    sunlight: 'Indirect Light',
+    water: 'Weekly',
+    careInstructions: 'Keep in bright, indirect light. Water when top inch of soil is dry. Mist leaves occasionally.',
+  },
+  '2': {
+    _id: '2',
+    name: 'Snake Plant',
+    description: 'A hardy, low-maintenance plant perfect for beginners. Known for its air-purifying qualities.',
+    price: 19.99,
+    category: 'Indoor',
+    imageUrl: 'https://images.unsplash.com/photo-1463154545680-d59320fd685d?w=800&h=800&fit=crop&q=80',
+    stock: 25,
+    sunlight: 'Indirect Light',
+    water: 'Monthly',
+    careInstructions: 'Very low maintenance. Water sparingly, about once a month. Tolerates low light.',
+  },
+  '3': {
+    _id: '3',
+    name: 'Pothos Golden',
+    description: 'A trailing vine plant with heart-shaped leaves. Great for hanging baskets or shelves.',
+    price: 14.99,
+    category: 'Indoor',
+    imageUrl: 'https://images.unsplash.com/photo-1593691509546-89fc12097a99?w=800&h=800&fit=crop&q=80',
+    stock: 30,
+    sunlight: 'Indirect Light',
+    water: 'Weekly',
+    careInstructions: 'Easy to care for. Water when soil feels dry. Can thrive in various light conditions.',
+  },
+  '4': {
+    _id: '4',
+    name: 'Lavender',
+    description: 'Fragrant purple flowers that attract pollinators. Perfect for outdoor gardens.',
+    price: 12.99,
+    category: 'Outdoor',
+    imageUrl: 'https://images.unsplash.com/photo-1499002238440-d264edd596ec?w=800&h=800&fit=crop&q=80',
+    stock: 20,
+    sunlight: 'Full Sun',
+    water: 'Weekly',
+    careInstructions: 'Needs full sun and well-drained soil. Water regularly but avoid overwatering.',
+  },
+  '5': {
+    _id: '5',
+    name: 'Aloe Vera',
+    description: 'Succulent plant known for its medicinal properties. Low maintenance and easy to grow.',
+    price: 9.99,
+    category: 'Succulent',
+    imageUrl: 'https://images.unsplash.com/photo-1525498128493-380d1990a112?w=800&h=800&fit=crop&q=80',
+    stock: 40,
+    sunlight: 'Partial Sun',
+    water: 'Bi-weekly',
+    careInstructions: 'Very low maintenance. Water deeply but infrequently. Prefers bright light.',
+  },
+  '6': {
+    _id: '6',
+    name: 'Rose Bush',
+    description: 'Classic flowering shrub with beautiful blooms. Available in various colors.',
+    price: 24.99,
+    category: 'Flowering',
+    imageUrl: 'https://images.unsplash.com/photo-1518621012428-4ef4c1ee3387?w=800&h=800&fit=crop&q=80',
+    stock: 12,
+    sunlight: 'Full Sun',
+    water: 'Weekly',
+    careInstructions: 'Needs full sun and regular watering. Prune regularly for best blooms.',
+  },
+  '7': {
+    _id: '7',
+    name: 'Basil',
+    description: 'Fresh herb perfect for cooking. Grow your own herbs at home!',
+    price: 7.99,
+    category: 'Herb',
+    imageUrl: 'https://images.unsplash.com/photo-1618375569909-3c8616cf7733?w=800&h=800&fit=crop&q=80',
+    stock: 35,
+    sunlight: 'Full Sun',
+    water: 'Daily',
+    careInstructions: 'Keep soil moist. Pinch flowers to encourage leaf growth. Harvest regularly.',
+  },
+  '8': {
+    _id: '8',
+    name: 'Jade Plant',
+    description: 'Beautiful succulent with thick, glossy leaves. Symbol of good luck and prosperity.',
+    price: 16.99,
+    category: 'Succulent',
+    imageUrl: 'https://images.unsplash.com/photo-1509423350716-97f9360b4e09?w=800&h=800&fit=crop&q=80',
+    stock: 18,
+    sunlight: 'Partial Sun',
+    water: 'Bi-weekly',
+    careInstructions: 'Water when soil is completely dry. Prefers bright, indirect light.',
+  },
+  '9': {
+    _id: '9',
+    name: 'Fiddle Leaf Fig',
+    description: 'Stunning indoor tree with large, violin-shaped leaves. A statement piece for any room.',
+    price: 34.99,
+    category: 'Indoor',
+    imageUrl: 'https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=800&h=800&fit=crop&q=80',
+    stock: 10,
+    sunlight: 'Indirect Light',
+    water: 'Weekly',
+    careInstructions: 'Prefers bright, indirect light. Water when top 2 inches of soil are dry. Avoid overwatering.',
+  },
+  '10': {
+    _id: '10',
+    name: 'Rubber Plant',
+    description: 'Beautiful dark green leaves with a glossy finish. Great air purifier and easy to care for.',
+    price: 22.99,
+    category: 'Indoor',
+    imageUrl: 'https://images.unsplash.com/photo-1595322917960-99559b3e0e1c?w=800&h=800&fit=crop&q=80',
+    stock: 20,
+    sunlight: 'Indirect Light',
+    water: 'Weekly',
+    careInstructions: 'Water when soil feels dry. Wipe leaves occasionally to keep them shiny.',
+  },
+  '11': {
+    _id: '11',
+    name: 'ZZ Plant',
+    description: 'Extremely low maintenance plant that thrives in low light. Perfect for beginners.',
+    price: 18.99,
+    category: 'Indoor',
+    imageUrl: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=800&h=800&fit=crop&q=80',
+    stock: 28,
+    sunlight: 'Indirect Light',
+    water: 'Monthly',
+    careInstructions: 'Very drought tolerant. Water every 2-3 weeks. Can survive in low light conditions.',
+  },
+  '12': {
+    _id: '12',
+    name: 'Peace Lily',
+    description: 'Elegant white flowers and air-purifying qualities. Perfect for darker corners.',
+    price: 21.99,
+    category: 'Indoor',
+    imageUrl: 'https://images.unsplash.com/photo-1593691509256-0b3015b7c9b3?w=800&h=800&fit=crop&q=80',
+    stock: 22,
+    sunlight: 'Shade',
+    water: 'Weekly',
+    careInstructions: 'Keep soil moist but not soggy. Prefers low to medium light. Perfect for bathrooms.',
+  },
+};
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    await connectDB();
-    
-    const plant = await Plant.findById(params.id).lean();
-    
-    if (!plant) {
-      return NextResponse.json(
-        { success: false, error: 'Plant not found' },
-        { status: 404 }
-      );
+    // Try MongoDB first
+    try {
+      const connectDB = (await import('@/lib/mongodb')).default;
+      const Plant = (await import('@/models/Plant')).default;
+      
+      await connectDB();
+      const plant = await Plant.findById(params.id).lean();
+      
+      if (!plant) {
+        throw new Error('Plant not found');
+      }
+      
+      return NextResponse.json({
+        success: true,
+        data: plant,
+      });
+    } catch (dbError) {
+      // Fallback to mock data
+      const plant = mockPlants[params.id];
+      
+      if (!plant) {
+        return NextResponse.json(
+          { success: false, error: 'Plant not found' },
+          { status: 404 }
+        );
+      }
+      
+      return NextResponse.json({
+        success: true,
+        data: plant,
+      });
     }
-    
-    return NextResponse.json({
-      success: true,
-      data: plant,
-    });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message },
@@ -35,8 +198,10 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    await connectDB();
+    const connectDB = (await import('@/lib/mongodb')).default;
+    const Plant = (await import('@/models/Plant')).default;
     
+    await connectDB();
     const body = await request.json();
     
     const plant = await Plant.findByIdAndUpdate(
@@ -69,8 +234,10 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await connectDB();
+    const connectDB = (await import('@/lib/mongodb')).default;
+    const Plant = (await import('@/models/Plant')).default;
     
+    await connectDB();
     const plant = await Plant.findByIdAndDelete(params.id);
     
     if (!plant) {
@@ -91,4 +258,3 @@ export async function DELETE(
     );
   }
 }
-

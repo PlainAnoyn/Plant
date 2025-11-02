@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
+import { useCart } from '@/contexts/CartContext';
+import FlyToCartAnimation from '@/components/FlyToCartAnimation';
 
 interface Plant {
   _id: string;
@@ -26,6 +28,10 @@ export default function PlantDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [showAnimation, setShowAnimation] = useState(false);
+  const [animationStart, setAnimationStart] = useState({ x: 0, y: 0 });
+  const { addToCart } = useCart();
 
   useEffect(() => {
     if (params.id) {
@@ -53,9 +59,40 @@ export default function PlantDetailsPage() {
     }
   };
 
-  const handleAddToCart = () => {
-    // TODO: Implement cart functionality
+  const handleAddToCart = async (e?: React.MouseEvent) => {
+    if (!plant || plant.stock === 0) return;
+    
+    // Get button position for animation
+    if (e) {
+      const button = e.currentTarget as HTMLElement;
+      const rect = button.getBoundingClientRect();
+      setAnimationStart({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      });
+    }
+    
+    setAddingToCart(true);
+    setShowAnimation(true);
+    
+    // Simulate async operation
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    for (let i = 0; i < quantity; i++) {
+      addToCart({
+        _id: plant._id,
+        name: plant.name,
+        price: plant.price,
+        imageUrl: plant.imageUrl,
+      });
+    }
+    
+    setAddingToCart(false);
     alert(`Added ${quantity} ${quantity === 1 ? 'item' : 'items'} to cart!`);
+  };
+
+  const handleAnimationComplete = () => {
+    setShowAnimation(false);
   };
 
   if (loading) {
@@ -85,8 +122,16 @@ export default function PlantDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <>
+      {showAnimation && (
+        <FlyToCartAnimation
+          imageUrl={plant.imageUrl}
+          from={animationStart}
+          onComplete={handleAnimationComplete}
+        />
+      )}
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Link 
           href="/plants" 
           className="inline-flex items-center text-primary-600 hover:text-primary-700 mb-6 transition-colors group"
@@ -113,6 +158,8 @@ export default function PlantDetailsPage() {
                 }`}
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 priority
+                placeholder="blur"
+                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
                 onLoad={() => setImageLoaded(true)}
               />
               {plant.stock === 0 && (
@@ -222,7 +269,8 @@ export default function PlantDetailsPage() {
                 <Button
                   size="lg"
                   variant="primary"
-                  disabled={plant.stock === 0}
+                  disabled={plant.stock === 0 || addingToCart}
+                  loading={addingToCart}
                   onClick={handleAddToCart}
                   className="w-full"
                 >
@@ -241,5 +289,6 @@ export default function PlantDetailsPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
