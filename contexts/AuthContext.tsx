@@ -6,6 +6,8 @@ interface User {
   _id: string;
   name: string;
   email: string;
+  username?: string;
+  role?: 'user' | 'moderator' | 'admin';
   emailVerified?: boolean;
   profilePicture?: string;
 }
@@ -13,7 +15,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (emailOrUsername: string, password: string) => Promise<User>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isAuthenticated: boolean;
@@ -47,14 +49,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (emailOrUsername: string, password: string): Promise<User> => {
     try {
+      // Determine if it's a username or email
+      const isUsername = !emailOrUsername.includes('@');
+      const body = isUsername 
+        ? { username: emailOrUsername, password }
+        : { email: emailOrUsername, password };
+
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
@@ -64,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(data.user);
+      return data.user;
     } catch (error: any) {
       throw error;
     }

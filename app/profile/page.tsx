@@ -10,7 +10,7 @@ import Input from '@/components/ui/Input';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'settings'>('profile');
 
@@ -30,6 +30,9 @@ export default function ProfilePage() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  // Delete account states
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -151,6 +154,40 @@ export default function ProfilePage() {
       setPasswordError('An error occurred. Please try again.');
     } finally {
       setPasswordLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = confirm(
+      'Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently deleted.'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeleteLoading(true);
+
+    try {
+      const response = await fetch('/api/user/delete', {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Log out the user and redirect to home page
+        await logout();
+        router.push('/');
+        // Show a temporary message
+        alert('Your account has been deleted successfully.');
+      } else {
+        alert(data.error || 'Failed to delete account. Please try again.');
+      }
+    } catch (error: any) {
+      alert('An error occurred while deleting your account. Please try again.');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -446,15 +483,12 @@ export default function ProfilePage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-red-600 text-red-600 hover:bg-red-50"
-                        onClick={() => {
-                          if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-                            // TODO: Implement account deletion
-                            alert('Account deletion coming soon!');
-                          }
-                        }}
+                        className="border-red-600 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={handleDeleteAccount}
+                        disabled={deleteLoading}
+                        loading={deleteLoading}
                       >
-                        Delete Account
+                        {deleteLoading ? 'Deleting...' : 'Delete Account'}
                       </Button>
                     </div>
                   </div>

@@ -3,13 +3,23 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWishlist } from '@/contexts/WishlistContext';
 import Button from '@/components/ui/Button';
+import AdminNavbar from './AdminNavbar';
 
 export default function Navbar() {
+  const pathname = usePathname();
+  
+  // Don't show regular navbar for admin routes (sidebar will be shown instead)
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
+
   const router = useRouter();
   const { isAuthenticated, user, logout } = useAuth();
+  const { wishlist } = useWishlist();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -73,6 +83,29 @@ export default function Navbar() {
             <div className="ml-6 flex items-center gap-3 border-l border-emerald-200 pl-6">
               {isAuthenticated ? (
                 <>
+                  <Link href="/wishlist" className="relative px-3 py-2 text-emerald-800 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all duration-200" title="Wishlist">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                    {wishlist.length > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        {wishlist.length}
+                      </span>
+                    )}
+                  </Link>
+                  <Link href="/orders" className="px-3 py-2 text-emerald-800 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all duration-200" title="Orders">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                  </Link>
+                  {user?.role === 'admin' && (
+                    <Link href="/admin" className="px-3 py-2 text-emerald-800 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all duration-200" title="Admin Dashboard">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                    </Link>
+                  )}
                   <Link href="/profile" className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-full hover:bg-emerald-100 transition-colors">
                     {user?.profilePicture ? (
                       <Image
@@ -182,7 +215,28 @@ export default function Navbar() {
             <div className="pt-2 border-t border-emerald-100 mt-2 space-y-2">
               {isAuthenticated ? (
                 <>
-                  <Link href="/profile" className="flex items-center gap-2 px-4 py-2 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors">
+                  <Link href="/wishlist" className="flex items-center gap-2 px-4 py-2 text-emerald-800 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all duration-200 font-medium" onClick={() => setIsMenuOpen(false)}>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                    Wishlist {wishlist.length > 0 && `(${wishlist.length})`}
+                  </Link>
+                  <Link href="/orders" className="flex items-center gap-2 px-4 py-2 text-emerald-800 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all duration-200 font-medium" onClick={() => setIsMenuOpen(false)}>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                    </svg>
+                    My Orders
+                  </Link>
+                  {user?.role === 'admin' && (
+                    <Link href="/admin" className="flex items-center gap-2 px-4 py-2 text-emerald-800 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all duration-200 font-medium" onClick={() => setIsMenuOpen(false)}>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Admin Dashboard
+                    </Link>
+                  )}
+                  <Link href="/profile" className="flex items-center gap-2 px-4 py-2 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors" onClick={() => setIsMenuOpen(false)}>
                     {user?.profilePicture ? (
                       <Image
                         src={user.profilePicture}

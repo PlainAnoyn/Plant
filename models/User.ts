@@ -14,11 +14,23 @@ const UserSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    username: {
+      type: String,
+      unique: true,
+      sparse: true, // Allow null values but ensure uniqueness when present
+      trim: true,
+      lowercase: true,
+    },
     password: {
       type: String,
       required: [true, 'Please provide a password'],
       minlength: [6, 'Password must be at least 6 characters'],
       select: false, // Don't return password by default
+    },
+    role: {
+      type: String,
+      enum: ['user', 'moderator', 'admin'],
+      default: 'user',
     },
     emailVerified: {
       type: Boolean,
@@ -35,6 +47,22 @@ const UserSchema = new mongoose.Schema(
     profilePicture: {
       type: String,
       trim: true,
+    },
+    isBlacklisted: {
+      type: Boolean,
+      default: false,
+    },
+    blacklistedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    blacklistedAt: {
+      type: Date,
+    },
+    blacklistReason: {
+      type: String,
+      trim: true,
+      maxlength: [500, 'Blacklist reason cannot exceed 500 characters'],
     },
   },
   {

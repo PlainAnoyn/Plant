@@ -23,10 +23,14 @@ function PlantsContent() {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || 'All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+  const [stockFilter, setStockFilter] = useState<'all' | 'in-stock' | 'out-of-stock'>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'price-low' | 'price-high' | 'newest'>('name');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     fetchPlants();
-  }, [page, selectedCategory, searchQuery]);
+  }, [page, selectedCategory, searchQuery, priceRange, stockFilter, sortBy]);
 
   const fetchPlants = async () => {
     setLoading(true);
@@ -37,6 +41,18 @@ function PlantsContent() {
       }
       if (searchQuery) {
         params.append('search', searchQuery);
+      }
+      if (priceRange.min) {
+        params.append('minPrice', priceRange.min);
+      }
+      if (priceRange.max) {
+        params.append('maxPrice', priceRange.max);
+      }
+      if (stockFilter !== 'all') {
+        params.append('stockFilter', stockFilter);
+      }
+      if (sortBy) {
+        params.append('sortBy', sortBy);
       }
       params.append('page', page.toString());
       params.append('limit', '12');
@@ -53,6 +69,21 @@ function PlantsContent() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePriceRangeChange = (type: 'min' | 'max', value: string) => {
+    setPriceRange((prev) => ({
+      ...prev,
+      [type]: value,
+    }));
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setPriceRange({ min: '', max: '' });
+    setStockFilter('all');
+    setSortBy('name');
+    setPage(1);
   };
 
   const categories = ['All', 'Indoor', 'Outdoor', 'Succulent', 'Flowering', 'Herb', 'Tree', 'Shrub'];
@@ -86,6 +117,94 @@ function PlantsContent() {
               />
             </div>
           </div>
+          
+          {/* Filter Toggle */}
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-gray-700 flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
+            </button>
+            {(priceRange.min || priceRange.max || stockFilter !== 'all' || sortBy !== 'name') && (
+              <button
+                onClick={clearFilters}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 underline"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+
+          {/* Advanced Filters */}
+          {showFilters && (
+            <div className="bg-white rounded-xl p-6 mb-6 shadow-md border border-gray-200">
+              <div className="grid md:grid-cols-3 gap-6">
+                {/* Price Range */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Price Range ($)</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      placeholder="Min"
+                      value={priceRange.min}
+                      onChange={(e) => handlePriceRangeChange('min', e.target.value)}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Max"
+                      value={priceRange.max}
+                      onChange={(e) => handlePriceRangeChange('max', e.target.value)}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* Stock Availability */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Stock Availability</label>
+                  <select
+                    value={stockFilter}
+                    onChange={(e) => {
+                      setStockFilter(e.target.value as 'all' | 'in-stock' | 'out-of-stock');
+                      setPage(1);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="all">All Products</option>
+                    <option value="in-stock">In Stock</option>
+                    <option value="out-of-stock">Out of Stock</option>
+                  </select>
+                </div>
+
+                {/* Sort By */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Sort By</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => {
+                      setSortBy(e.target.value as 'name' | 'price-low' | 'price-high' | 'newest');
+                      setPage(1);
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  >
+                    <option value="name">Name (A-Z)</option>
+                    <option value="price-low">Price: Low to High</option>
+                    <option value="price-high">Price: High to Low</option>
+                    <option value="newest">Newest First</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="flex flex-wrap justify-center gap-3">
             {categories.map((category) => (

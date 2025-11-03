@@ -9,18 +9,23 @@ import Button from '@/components/ui/Button';
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (isAuthenticated) {
-      const redirect = searchParams.get('redirect') || '/cart';
-      router.push(redirect);
+    if (isAuthenticated && user) {
+      // If admin, redirect to admin page; otherwise use redirect param or cart
+      if (user.role === 'admin') {
+        router.push('/admin');
+      } else {
+        const redirect = searchParams.get('redirect') || '/cart';
+        router.push(redirect);
+      }
     }
-  }, [isAuthenticated, router, searchParams]);
+  }, [isAuthenticated, user, router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,9 +33,21 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await login(email, password);
-      const redirect = searchParams.get('redirect') || '/cart';
-      router.push(redirect);
+      // Login and get user data
+      const loggedInUser = await login(email, password);
+      
+      // Check if admin (by role OR by email/username match)
+      const isAdmin = loggedInUser.role === 'admin' || 
+                     loggedInUser.email === 'admin@gmail.com' || 
+                     loggedInUser.username === 'admin';
+      
+      // If admin, redirect to admin page; otherwise use redirect param or cart
+      if (isAdmin) {
+        router.push('/admin');
+      } else {
+        const redirect = searchParams.get('redirect') || '/cart';
+        router.push(redirect);
+      }
       router.refresh();
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
@@ -62,18 +79,18 @@ export default function LoginPage() {
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="email" className="sr-only">
-                Email address
+                Email or Username
               </label>
               <input
                 id="email"
                 name="email"
-                type="email"
-                autoComplete="email"
+                type="text"
+                autoComplete="username"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="appearance-none rounded-lg relative block w-full px-3 py-3 border border-emerald-300 placeholder-emerald-400 text-emerald-900 focus:outline-none focus:ring-emerald-500 focus:border-emerald-500 focus:z-10 sm:text-sm mb-4"
-                placeholder="Email address"
+                placeholder="Email or Username"
               />
             </div>
             <div>

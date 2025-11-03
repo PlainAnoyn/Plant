@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
-import FloatingCartButton from "@/components/FloatingCartButton";
-import PageLoader from "@/components/PageLoader";
+import { WishlistProvider } from "@/contexts/WishlistContext";
+import LayoutWrapper from "@/components/LayoutWrapper";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,17 +20,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
       <body className={inter.className}>
         <AuthProvider>
-          <CartProvider>
-            <PageLoader />
-            <Navbar />
-            <main className="min-h-screen">
-              {children}
-            </main>
-            <Footer />
-            <FloatingCartButton />
-          </CartProvider>
+          <WishlistProvider>
+            <CartProvider>
+              <LayoutWrapper>
+                {children}
+              </LayoutWrapper>
+            </CartProvider>
+          </WishlistProvider>
         </AuthProvider>
       </body>
     </html>

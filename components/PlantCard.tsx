@@ -4,6 +4,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
+import { useWishlist } from '@/contexts/WishlistContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import FlyToCartAnimation from '@/components/FlyToCartAnimation';
 
@@ -21,9 +24,13 @@ interface PlantCardProps {
 export default function PlantCard({ plant }: PlantCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const { addToCart, removeFromCart, updateQuantity, cart } = useCart();
+  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
   const [addingToCart, setAddingToCart] = useState(false);
   const [showAnimation, setShowAnimation] = useState(false);
   const [animationStart, setAnimationStart] = useState({ x: 0, y: 0 });
+  const [wishlistLoading, setWishlistLoading] = useState(false);
 
   // Find if this plant is in cart
   const cartItem = cart.find((item) => item._id === plant._id);
@@ -92,6 +99,29 @@ export default function PlantCard({ plant }: PlantCardProps) {
     window.location.href = `/plants/${plant._id}`;
   };
 
+  const handleWishlistToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!isAuthenticated) {
+      router.push('/login?redirect=' + encodeURIComponent(window.location.pathname));
+      return;
+    }
+
+    setWishlistLoading(true);
+    try {
+      if (isInWishlist(plant._id)) {
+        await removeFromWishlist(plant._id);
+      } else {
+        await addToWishlist(plant._id);
+      }
+    } catch (error: any) {
+      console.error('Wishlist error:', error);
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
   return (
     <>
       {showAnimation && (
@@ -119,13 +149,37 @@ export default function PlantCard({ plant }: PlantCardProps) {
             blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
             onLoad={() => setImageLoaded(true)}
           />
+          {/* Wishlist Button */}
+          <button
+            onClick={handleWishlistToggle}
+            disabled={wishlistLoading}
+            className={`absolute top-3 right-3 bg-white rounded-full p-2 shadow-lg z-20 hover:scale-110 transition-transform duration-200 disabled:opacity-50 ${
+              isInWishlist(plant._id) ? 'text-red-500' : 'text-gray-400'
+            }`}
+            title={isInWishlist(plant._id) ? 'Remove from wishlist' : 'Add to wishlist'}
+          >
+            <svg
+              className="w-5 h-5"
+              fill={isInWishlist(plant._id) ? 'currentColor' : 'none'}
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              />
+            </svg>
+          </button>
+
           {plant.stock === 0 && (
-            <div className="absolute top-3 right-3 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg z-10">
+            <div className="absolute top-3 left-3 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg z-10">
               Out of Stock
             </div>
           )}
           {plant.stock > 0 && plant.stock < 5 && (
-            <div className="absolute top-3 right-3 bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg z-10">
+            <div className="absolute top-3 left-3 bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg z-10">
               Low Stock
             </div>
           )}

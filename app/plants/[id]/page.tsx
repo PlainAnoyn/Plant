@@ -7,6 +7,8 @@ import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { useCart } from '@/contexts/CartContext';
 import FlyToCartAnimation from '@/components/FlyToCartAnimation';
+import Reviews from '@/components/Reviews';
+import ProductRecommendations from '@/components/ProductRecommendations';
 
 interface Plant {
   _id: string;
@@ -284,11 +286,19 @@ export default function PlantDetailsPage() {
                   <span>Free shipping on orders over $50</span>
                 </div>
               </div>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Reviews Section */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <Reviews plantId={plant._id} />
+        </div>
+
+        {/* Product Recommendations */}
+        <ProductRecommendations plantId={plant._id} category={plant.category} limit={4} />
       </div>
-    </div>
     </>
   );
 }

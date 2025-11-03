@@ -162,6 +162,10 @@ export async function GET(request: NextRequest) {
       const searchParams = request.nextUrl.searchParams;
       const category = searchParams.get('category');
       const search = searchParams.get('search');
+      const minPrice = searchParams.get('minPrice');
+      const maxPrice = searchParams.get('maxPrice');
+      const stockFilter = searchParams.get('stockFilter');
+      const sortBy = searchParams.get('sortBy') || 'name';
       const page = parseInt(searchParams.get('page') || '1');
       const limit = parseInt(searchParams.get('limit') || '12');
       const skip = (page - 1) * limit;
@@ -179,8 +183,44 @@ export async function GET(request: NextRequest) {
         ];
       }
 
+      // Price range filter
+      if (minPrice || maxPrice) {
+        query.price = {};
+        if (minPrice) {
+          query.price.$gte = parseFloat(minPrice);
+        }
+        if (maxPrice) {
+          query.price.$lte = parseFloat(maxPrice);
+        }
+      }
+
+      // Stock filter
+      if (stockFilter === 'in-stock') {
+        query.stock = { $gt: 0 };
+      } else if (stockFilter === 'out-of-stock') {
+        query.stock = 0;
+      }
+
+      // Sorting
+      let sortQuery: any = {};
+      switch (sortBy) {
+        case 'price-low':
+          sortQuery = { price: 1 };
+          break;
+        case 'price-high':
+          sortQuery = { price: -1 };
+          break;
+        case 'newest':
+          sortQuery = { createdAt: -1 };
+          break;
+        case 'name':
+        default:
+          sortQuery = { name: 1 };
+          break;
+      }
+
       const dbPlants = await Plant.find(query)
-        .sort({ createdAt: -1 })
+        .sort(sortQuery)
         .skip(skip)
         .limit(limit)
         .lean();
@@ -207,6 +247,10 @@ export async function GET(request: NextRequest) {
       const searchParams = request.nextUrl.searchParams;
       const category = searchParams.get('category');
       const search = searchParams.get('search');
+      const minPrice = searchParams.get('minPrice');
+      const maxPrice = searchParams.get('maxPrice');
+      const stockFilter = searchParams.get('stockFilter');
+      const sortBy = searchParams.get('sortBy') || 'name';
       const page = parseInt(searchParams.get('page') || '1');
       const limit = parseInt(searchParams.get('limit') || '12');
       const skip = (page - 1) * limit;
@@ -226,6 +270,40 @@ export async function GET(request: NextRequest) {
             plant.name.toLowerCase().includes(searchLower) ||
             plant.description.toLowerCase().includes(searchLower)
         );
+      }
+
+      // Filter by price range
+      if (minPrice) {
+        const min = parseFloat(minPrice);
+        filteredPlants = filteredPlants.filter((plant) => plant.price >= min);
+      }
+      if (maxPrice) {
+        const max = parseFloat(maxPrice);
+        filteredPlants = filteredPlants.filter((plant) => plant.price <= max);
+      }
+
+      // Filter by stock
+      if (stockFilter === 'in-stock') {
+        filteredPlants = filteredPlants.filter((plant) => plant.stock > 0);
+      } else if (stockFilter === 'out-of-stock') {
+        filteredPlants = filteredPlants.filter((plant) => plant.stock === 0);
+      }
+
+      // Sort
+      switch (sortBy) {
+        case 'price-low':
+          filteredPlants.sort((a, b) => a.price - b.price);
+          break;
+        case 'price-high':
+          filteredPlants.sort((a, b) => b.price - a.price);
+          break;
+        case 'newest':
+          // Keep original order for mock data (newest first)
+          break;
+        case 'name':
+        default:
+          filteredPlants.sort((a, b) => a.name.localeCompare(b.name));
+          break;
       }
 
       const total = filteredPlants.length;

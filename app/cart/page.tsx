@@ -42,14 +42,9 @@ export default function CartPage() {
     return null;
   }
 
-  const handleCheckout = async () => {
-    setCheckoutLoading(true);
-    // Simulate checkout process
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    // TODO: Implement checkout functionality
-    alert('Checkout functionality coming soon!');
-    setCheckoutLoading(false);
-    // You can redirect to checkout page or payment gateway here
+  const handleCheckout = () => {
+    // Redirect to checkout page
+    router.push('/checkout');
   };
 
   if (!mounted) {

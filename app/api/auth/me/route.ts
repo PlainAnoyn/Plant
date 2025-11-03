@@ -32,12 +32,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // If user is admin by email or username, ensure role is admin
+    let userRole = user.role || 'user';
+    if ((user.email === 'admin@gmail.com' || user.username === 'admin') && (userRole !== 'admin')) {
+      // Update role in background
+      User.findByIdAndUpdate(user._id, { role: 'admin', username: 'admin' }).catch(console.error);
+      userRole = 'admin';
+    }
+
     return NextResponse.json({
       success: true,
       user: {
         _id: user._id.toString(),
         name: user.name,
         email: user.email,
+        username: user.username || (user.email === 'admin@gmail.com' ? 'admin' : undefined),
+        role: userRole,
         emailVerified: user.emailVerified,
         profilePicture: user.profilePicture,
       },
