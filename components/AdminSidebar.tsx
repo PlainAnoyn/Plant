@@ -18,7 +18,12 @@ export default function AdminSidebar() {
     router.refresh();
   };
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (targetTab: string) => {
+    const currentTab = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('tab') || 'overview'
+      : 'overview';
+    return currentTab === targetTab;
+  };
 
   const menuItems = [
     {
@@ -29,6 +34,10 @@ export default function AdminSidebar() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
         </svg>
       ),
+      onClick: (e: React.MouseEvent) => {
+        e.preventDefault();
+        router.push('/admin?tab=overview');
+      },
     },
     {
       name: 'Orders',
@@ -129,13 +138,43 @@ export default function AdminSidebar() {
                 href={item.path}
                 onClick={item.onClick}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
-                  isActive(item.path)
+                  isActive(
+                    item.name.toLowerCase() === 'overview'
+                      ? 'overview'
+                      : item.name.toLowerCase() === 'orders'
+                      ? 'orders'
+                      : item.name.toLowerCase() === 'products'
+                      ? 'plants'
+                      : item.name.toLowerCase() === 'users'
+                      ? 'users'
+                      : item.name.toLowerCase() === 'reviews'
+                      ? 'reviews'
+                      : 'overview'
+                  )
                     ? 'bg-emerald-800 text-white'
                     : 'text-emerald-100 hover:bg-emerald-800 hover:text-white'
                 }`}
                 title={isCollapsed ? item.name : ''}
               >
-                <span className={`flex-shrink-0 ${isActive(item.path) ? 'text-white' : 'text-emerald-300'}`}>
+                <span
+                  className={`flex-shrink-0 ${
+                    isActive(
+                      item.name.toLowerCase() === 'overview'
+                        ? 'overview'
+                        : item.name.toLowerCase() === 'orders'
+                        ? 'orders'
+                        : item.name.toLowerCase() === 'products'
+                        ? 'plants'
+                        : item.name.toLowerCase() === 'users'
+                        ? 'users'
+                        : item.name.toLowerCase() === 'reviews'
+                        ? 'reviews'
+                        : 'overview'
+                    )
+                      ? 'text-white'
+                      : 'text-emerald-300'
+                  }`}
+                >
                   {item.icon}
                 </span>
                 {!isCollapsed && (

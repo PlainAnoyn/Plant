@@ -4,7 +4,7 @@ import Plant from '@/models/Plant';
 import User from '@/models/User';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET ;
 
 // Helper function to check if user is admin
 async function checkAdmin(request: NextRequest): Promise<{ success: boolean; userId?: string; error?: string }> {
@@ -63,8 +63,11 @@ export async function POST(request: NextRequest) {
         description: plant.description,
         price: plant.price,
         category: plant.category,
+        discountPercentage: plant.discountPercentage || 0,
         imageUrl: plant.imageUrl,
         stock: plant.stock,
+        isFeatured: plant.isFeatured || false,
+        isFreeDelivery: plant.isFreeDelivery || false,
         careInstructions: plant.careInstructions,
         sunlight: plant.sunlight,
         water: plant.water,
@@ -115,8 +118,11 @@ export async function GET(request: NextRequest) {
         description: plant.description,
         price: plant.price,
         category: plant.category,
+        discountPercentage: plant.discountPercentage || 0,
         imageUrl: plant.imageUrl,
         stock: plant.stock,
+        isFeatured: plant.isFeatured || false,
+        isFreeDelivery: plant.isFreeDelivery || false,
         careInstructions: plant.careInstructions,
         sunlight: plant.sunlight,
         water: plant.water,

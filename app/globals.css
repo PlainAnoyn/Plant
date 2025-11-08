@@ -9,13 +9,14 @@
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  color: #0f172a;
+  background: #f8fafc;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.dark body {
+  color: #f1f5f9;
+  background: #0f172a;
 }
 
 @layer utilities {
@@ -32,6 +33,64 @@ body {
   to {
     opacity: 1;
   }
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes twinkle-delayed {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes cloud-drift {
+  0%, 100% {
+    transform: translateX(0) translateY(0);
+  }
+  50% {
+    transform: translateX(2px) translateY(-1px);
+  }
+}
+
+@keyframes cloud-drift-delayed {
+  0%, 100% {
+    transform: translateX(0) translateY(0);
+  }
+  50% {
+    transform: translateX(-1px) translateY(1px);
+  }
+}
+
+.star-twinkle {
+  animation: twinkle 2s ease-in-out infinite;
+}
+
+.star-twinkle-delayed {
+  animation: twinkle-delayed 2.5s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+.cloud-drift {
+  animation: cloud-drift 3s ease-in-out infinite;
+}
+
+.cloud-drift-delayed {
+  animation: cloud-drift-delayed 3.5s ease-in-out infinite;
+  animation-delay: 0.7s;
 }
 
 @keyframes slide-up {
@@ -111,6 +170,10 @@ html {
   background: #f1f1f1;
 }
 
+.dark ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
 ::-webkit-scrollbar-thumb {
   background: #059669;
   border-radius: 5px;
@@ -118,6 +181,14 @@ html {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #047857;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #10b981;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #34d399;
 }
 
 /* Loading Animation */

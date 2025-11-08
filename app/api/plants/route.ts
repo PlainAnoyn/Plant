@@ -1,5 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+function normalizeImageUrl(name: string, category: string, url?: string): string {
+  // Use source.unsplash.com as fallback - more reliable than images.unsplash.com
+  const fallback = `https://source.unsplash.com/800x800/?${encodeURIComponent(category || 'plant')}`;
+  if (!url || !url.trim()) return fallback;
+  
+  try {
+    const u = new URL(url.trim());
+    
+    // If it's already source.unsplash.com, return as-is
+    if (u.hostname === 'source.unsplash.com') {
+      return url;
+    }
+    
+    // Convert Unsplash page URL to source.unsplash.com (more reliable)
+    if (u.hostname === 'unsplash.com' && u.pathname.startsWith('/photos/')) {
+      // Use category-based placeholder instead of trying to extract ID
+      return fallback;
+    }
+    
+    // For images.unsplash.com, try to use it but it may fail
+    // In that case, frontend will fall back to placeholder
+    if (u.hostname === 'images.unsplash.com') {
+      if (!u.search) u.search = '?auto=format&fit=crop&w=800&q=80';
+      return u.toString();
+    }
+    
+    // For any other valid URL, return it
+    return url;
+  } catch {
+    // Invalid URL format - use category-based placeholder
+    return fallback;
+  }
+}
+
 // Mock plant data - replace with MongoDB later
 const mockPlants = [
   {
@@ -168,6 +202,8 @@ export async function GET(request: NextRequest) {
       const sortBy = searchParams.get('sortBy') || 'name';
       const page = parseInt(searchParams.get('page') || '1');
       const limit = parseInt(searchParams.get('limit') || '12');
+      const isFeatured = searchParams.get('isFeatured');
+      const isFreeDelivery = searchParams.get('isFreeDelivery');
       const skip = (page - 1) * limit;
 
       let query: any = {};
@@ -201,6 +237,14 @@ export async function GET(request: NextRequest) {
         query.stock = 0;
       }
 
+      // Flags
+      if (isFeatured === 'true') {
+        query.isFeatured = true;
+      }
+      if (isFreeDelivery === 'true') {
+        query.isFreeDelivery = true;
+      }
+
       // Sorting
       let sortQuery: any = {};
       switch (sortBy) {
@@ -219,15 +263,21 @@ export async function GET(request: NextRequest) {
           break;
       }
 
-      const dbPlants = await Plant.find(query)
+      let dbPlants = await Plant.find(query)
         .sort(sortQuery)
         .skip(skip)
         .limit(limit)
         .lean();
 
+      // Normalize/repair image URLs
+      dbPlants = dbPlants.map((p: any) => ({
+        ...p,
+        imageUrl: normalizeImageUrl(p.name, p.category, p.imageUrl),
+      }));
+
       const total = await Plant.countDocuments(query);
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         data: dbPlants,
         pagination: {
@@ -237,6 +287,11 @@ export async function GET(request: NextRequest) {
           pages: Math.ceil(total / limit),
         },
       });
+      
+      // Cache for 60 seconds (ISR)
+      response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+      
+      return response;
     } catch (dbError) {
       // If MongoDB fails, use mock data
       useMock = true;
@@ -251,6 +306,8 @@ export async function GET(request: NextRequest) {
       const maxPrice = searchParams.get('maxPrice');
       const stockFilter = searchParams.get('stockFilter');
       const sortBy = searchParams.get('sortBy') || 'name';
+      const isFeatured = searchParams.get('isFeatured');
+      const isFreeDelivery = searchParams.get('isFreeDelivery');
       const page = parseInt(searchParams.get('page') || '1');
       const limit = parseInt(searchParams.get('limit') || '12');
       const skip = (page - 1) * limit;
@@ -289,6 +346,14 @@ export async function GET(request: NextRequest) {
         filteredPlants = filteredPlants.filter((plant) => plant.stock === 0);
       }
 
+      // Flags (mock data doesn't include these fields; skip filtering if absent)
+      if (isFeatured === 'true') {
+        filteredPlants = filteredPlants.filter((plant: any) => (plant as any).isFeatured === true);
+      }
+      if (isFreeDelivery === 'true') {
+        filteredPlants = filteredPlants.filter((plant: any) => (plant as any).isFreeDelivery === true);
+      }
+
       // Sort
       switch (sortBy) {
         case 'price-low':
@@ -307,7 +372,10 @@ export async function GET(request: NextRequest) {
       }
 
       const total = filteredPlants.length;
-      const paginatedPlants = filteredPlants.slice(skip, skip + limit);
+      const paginatedPlants = filteredPlants.slice(skip, skip + limit).map((p) => ({
+        ...p,
+        imageUrl: normalizeImageUrl(p.name, p.category, p.imageUrl),
+      }));
 
       return NextResponse.json({
         success: true,
@@ -335,8 +403,13 @@ export async function POST(request: NextRequest) {
     
     await connectDB();
     const body = await request.json();
+    // Normalize image on save
+    const normalized = {
+      ...body,
+      imageUrl: normalizeImageUrl(body.name, body.category, body.imageUrl),
+    };
     
-    const plant = await Plant.create(body);
+    const plant = await Plant.create(normalized);
     
     return NextResponse.json(
       { success: true, data: plant },

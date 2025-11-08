@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import Image from 'next/image';
+import Button from '@/components/ui/Button';
 import {
   LineChart,
   Line,
@@ -65,6 +66,8 @@ interface Plant {
   category: string;
   stock: number;
   imageUrl: string;
+  isFeatured?: boolean;
+  isFreeDelivery?: boolean;
   createdAt: string;
 }
 
@@ -133,6 +136,13 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [plants, setPlants] = useState<Plant[]>([]);
+  const [bulkSection, setBulkSection] = useState<'featured' | 'freeDelivery' | null>(null);
+  const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>([]);
+  const [initialBulkSelection, setInitialBulkSelection] = useState<string[]>([]);
+  const [isBulkMenuOpen, setIsBulkMenuOpen] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const bulkMenuRef = useRef<HTMLDivElement | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewsPage, setReviewsPage] = useState(1);
@@ -380,12 +390,142 @@ export default function AdminDashboard() {
     }
   };
 
+  useEffect(() => {
+    if (!isBulkMenuOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (bulkMenuRef.current && !bulkMenuRef.current.contains(event.target as Node)) {
+        setIsBulkMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isBulkMenuOpen]);
+
+  useEffect(() => {
+    if (!bulkStatus) return;
+
+    const timeout = setTimeout(() => setBulkStatus(null), 5000);
+    return () => clearTimeout(timeout);
+  }, [bulkStatus]);
+
+  const cancelBulkSelection = () => {
+    setBulkSection(null);
+    setSelectedPlantIds([]);
+    setInitialBulkSelection([]);
+    setIsBulkMenuOpen(false);
+    setBulkSaving(false);
+  };
+
+  const handleStartBulkSelection = (section: 'featured' | 'freeDelivery') => {
+    if (bulkSection === section) {
+      cancelBulkSelection();
+      setBulkStatus(null);
+      return;
+    }
+
+    const initialSelection = plants
+      .filter((plant) => (section === 'featured' ? plant.isFeatured : plant.isFreeDelivery))
+      .map((plant) => plant._id);
+
+    setBulkSection(section);
+    setInitialBulkSelection(initialSelection);
+    setSelectedPlantIds(initialSelection);
+    setBulkStatus(null);
+    setIsBulkMenuOpen(false);
+  };
+
+  const togglePlantSelection = (plantId: string) => {
+    setSelectedPlantIds((prev) =>
+      prev.includes(plantId) ? prev.filter((id) => id !== plantId) : [...prev, plantId]
+    );
+  };
+
+  const handleBulkSave = async () => {
+    if (!bulkSection) {
+      return;
+    }
+
+    const additions = selectedPlantIds.filter((id) => !initialBulkSelection.includes(id));
+    const removals = initialBulkSelection.filter((id) => !selectedPlantIds.includes(id));
+
+    if (additions.length === 0 && removals.length === 0) {
+      const sectionName = bulkSection === 'featured' ? 'Featured Products' : 'Free Delivery Picks';
+      cancelBulkSelection();
+      setBulkStatus({ type: 'success', message: `No changes made to ${sectionName}.` });
+      return;
+    }
+
+    setBulkSaving(true);
+
+    try {
+      const response = await fetch('/api/admin/plants/bulk', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          section: bulkSection,
+          add: additions,
+          remove: removals,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to update plant sections');
+      }
+
+      if (Array.isArray(data.updatedPlants)) {
+        const updates = new Map<string, Partial<Plant>>();
+        data.updatedPlants.forEach((plant: any) => {
+          updates.set(plant._id, {
+            isFeatured: plant.isFeatured,
+            isFreeDelivery: plant.isFreeDelivery,
+          });
+        });
+
+        setPlants((prev) =>
+          prev.map((plant) => (updates.has(plant._id) ? { ...plant, ...updates.get(plant._id)! } : plant))
+        );
+      }
+
+      const sectionName = bulkSection === 'featured' ? 'Featured Products' : 'Free Delivery Picks';
+      cancelBulkSelection();
+      setBulkStatus({ type: 'success', message: `Updated ${sectionName}.` });
+    } catch (error: any) {
+      console.error('Bulk section update error:', error);
+      setBulkStatus({
+        type: 'error',
+        message: error?.message || 'Failed to update selections. Please try again.',
+      });
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
+  const bulkSectionLabel =
+    bulkSection === 'featured'
+      ? 'Featured Products'
+      : bulkSection === 'freeDelivery'
+      ? 'Free Delivery Picks'
+      : '';
+
+  const hasBulkChanges = bulkSection
+    ? selectedPlantIds.length !== initialBulkSelection.length ||
+      selectedPlantIds.some((id) => !initialBulkSelection.includes(id)) ||
+      initialBulkSelection.some((id) => !selectedPlantIds.includes(id))
+    : false;
+ 
   if (!mounted || authLoading) {
     return (
-      <div className="min-h-screen bg-cream-50 py-12 flex items-center justify-center">
+      <div className="min-h-screen bg-cream-50 dark:bg-slate-900 py-12 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-600 border-t-transparent"></div>
-          <p className="mt-4 text-emerald-700">Loading...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-600 dark:border-emerald-500 border-t-transparent"></div>
+          <p className="mt-4 text-emerald-700 dark:text-emerald-400">Loading...</p>
         </div>
       </div>
     );
@@ -399,14 +539,14 @@ export default function AdminDashboard() {
   const isAdmin = user && (user.role === 'admin' || user.email === 'admin@gmail.com' || user.username === 'admin');
   if (user && !isAdmin) {
     return (
-      <div className="min-h-screen bg-cream-50 py-12 flex items-center justify-center">
+      <div className="min-h-screen bg-cream-50 dark:bg-slate-900 py-12 flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4">🚫</div>
-          <h2 className="text-2xl font-bold text-emerald-900 mb-2">Access Denied</h2>
-          <p className="text-emerald-700 mb-6">You don't have permission to access this page.</p>
-          <p className="text-sm text-emerald-600 mb-4">Current role: {user.role || 'none'}</p>
+          <h2 className="text-2xl font-semibold text-emerald-900 dark:text-emerald-300 mb-2">Access Denied</h2>
+          <p className="text-emerald-700 dark:text-emerald-400 mb-6">You don't have permission to access this page.</p>
+          <p className="text-sm text-emerald-600 dark:text-emerald-500 mb-4">Current role: {user.role || 'none'}</p>
           <Link href="/">
-            <button className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
+            <button className="px-6 py-3 bg-emerald-600 dark:bg-emerald-500 text-white rounded-lg hover:bg-emerald-700 dark:hover:bg-emerald-600 transition-colors">
               Go Home
             </button>
           </Link>
@@ -417,10 +557,10 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-cream-50 py-12 flex items-center justify-center">
+      <div className="min-h-screen bg-cream-50 dark:bg-slate-900 py-12 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-600 border-t-transparent"></div>
-          <p className="mt-4 text-emerald-700">Loading dashboard...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-600 dark:border-emerald-500 border-t-transparent"></div>
+          <p className="mt-4 text-emerald-700 dark:text-emerald-400">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -428,29 +568,29 @@ export default function AdminDashboard() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-cream-50 py-12 flex items-center justify-center">
+      <div className="min-h-screen bg-cream-50 dark:bg-slate-900 py-12 flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-emerald-900 mb-2">Error</h2>
-          <p className="text-emerald-700 mb-6">{error}</p>
-          <button
+          <h2 className="text-2xl font-semibold text-emerald-900 dark:text-emerald-300 mb-2">Error</h2>
+          <p className="text-emerald-700 dark:text-emerald-400 mb-6">{error}</p>
+          <Button
             onClick={fetchData}
-            className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+            variant="primary"
           >
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-cream-50" id="admin-page">
+    <div className="min-h-screen bg-cream-50 dark:bg-slate-900" id="admin-page">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-emerald-900 mb-2">Admin Dashboard</h1>
-          <p className="text-emerald-700">Manage your store, orders, and products</p>
+          <h1 className="text-4xl font-semibold text-emerald-900 dark:text-emerald-300 mb-2">Admin Dashboard</h1>
+          <p className="text-emerald-700 dark:text-emerald-400">Manage your store, orders, and products</p>
         </div>
 
         {/* Overview Tab */}
@@ -458,56 +598,56 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white rounded-xl shadow-md p-6">
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-6 border border-slate-200 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-emerald-700 text-sm font-medium mb-1">Total Users</p>
-                    <p className="text-3xl font-bold text-emerald-900">{stats.users.total}</p>
+                    <p className="text-emerald-700 dark:text-emerald-400 text-sm font-medium mb-1">Total Users</p>
+                    <p className="text-3xl font-semibold text-emerald-900 dark:text-emerald-300">{stats.users.total}</p>
                   </div>
-                  <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                     </svg>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-md p-6">
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-6 border border-slate-200 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-emerald-700 text-sm font-medium mb-1">Total Orders</p>
-                    <p className="text-3xl font-bold text-emerald-900">{stats.orders.total}</p>
+                    <p className="text-emerald-700 dark:text-emerald-400 text-sm font-medium mb-1">Total Orders</p>
+                    <p className="text-3xl font-semibold text-emerald-900 dark:text-emerald-300">{stats.orders.total}</p>
                   </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                     </svg>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-md p-6">
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-6 border border-slate-200 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-emerald-700 text-sm font-medium mb-1">Total Products</p>
-                    <p className="text-3xl font-bold text-emerald-900">{stats.products.total}</p>
+                    <p className="text-emerald-700 dark:text-emerald-400 text-sm font-medium mb-1">Total Products</p>
+                    <p className="text-3xl font-semibold text-emerald-900 dark:text-emerald-300">{stats.products.total}</p>
                   </div>
-                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-md p-6">
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-6 border border-slate-200 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-emerald-700 text-sm font-medium mb-1">Total Revenue</p>
-                    <p className="text-3xl font-bold text-emerald-900">${stats.revenue.total.toFixed(2)}</p>
+                    <p className="text-emerald-700 dark:text-emerald-400 text-sm font-medium mb-1">Total Revenue</p>
+                    <p className="text-3xl font-semibold text-emerald-900 dark:text-emerald-300">${stats.revenue.total.toFixed(2)}</p>
                   </div>
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
@@ -517,29 +657,29 @@ export default function AdminDashboard() {
 
             {/* Order Status Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-xl shadow-md p-4 text-center">
-                <p className="text-yellow-600 text-2xl font-bold">{stats.orders.pending}</p>
-                <p className="text-sm text-emerald-700">Pending Orders</p>
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-4 text-center border border-slate-200 dark:border-slate-700">
+                <p className="text-yellow-600 dark:text-yellow-500 text-2xl font-semibold">{stats.orders.pending}</p>
+                <p className="text-sm text-emerald-700 dark:text-emerald-400">Pending Orders</p>
               </div>
-              <div className="bg-white rounded-xl shadow-md p-4 text-center">
-                <p className="text-blue-600 text-2xl font-bold">{stats.orders.processing}</p>
-                <p className="text-sm text-emerald-700">Processing</p>
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-4 text-center border border-slate-200 dark:border-slate-700">
+                <p className="text-blue-600 dark:text-blue-500 text-2xl font-semibold">{stats.orders.processing}</p>
+                <p className="text-sm text-emerald-700 dark:text-emerald-400">Processing</p>
               </div>
-              <div className="bg-white rounded-xl shadow-md p-4 text-center">
-                <p className="text-indigo-600 text-2xl font-bold">{stats.orders.shipped}</p>
-                <p className="text-sm text-emerald-700">Shipped</p>
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-4 text-center border border-slate-200 dark:border-slate-700">
+                <p className="text-indigo-600 dark:text-indigo-500 text-2xl font-semibold">{stats.orders.shipped}</p>
+                <p className="text-sm text-emerald-700 dark:text-emerald-400">Shipped</p>
               </div>
-              <div className="bg-white rounded-xl shadow-md p-4 text-center">
-                <p className="text-green-600 text-2xl font-bold">{stats.orders.delivered}</p>
-                <p className="text-sm text-emerald-700">Delivered</p>
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-4 text-center border border-slate-200 dark:border-slate-700">
+                <p className="text-green-600 dark:text-green-500 text-2xl font-semibold">{stats.orders.delivered}</p>
+                <p className="text-sm text-emerald-700 dark:text-emerald-400">Delivered</p>
               </div>
             </div>
 
             {/* Business Metrics Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Sales Graph */}
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-xl font-bold text-emerald-900 mb-4">Sales Revenue</h3>
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-6 border border-slate-200 dark:border-slate-700">
+                <h3 className="text-xl font-semibold text-emerald-900 dark:text-emerald-300 mb-4">Sales Revenue</h3>
                 {stats.revenue.salesData && stats.revenue.salesData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={stats.revenue.salesData}>
@@ -570,15 +710,15 @@ export default function AdminDashboard() {
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-[300px] flex items-center justify-center text-emerald-700">
+                  <div className="h-[300px] flex items-center justify-center text-emerald-700 dark:text-emerald-400">
                     <p>No sales data available</p>
                   </div>
                 )}
               </div>
 
               {/* Users Growth Graph */}
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-xl font-bold text-emerald-900 mb-4">User Growth</h3>
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-6 border border-slate-200 dark:border-slate-700">
+                <h3 className="text-xl font-semibold text-emerald-900 dark:text-emerald-300 mb-4">User Growth</h3>
                 {stats.users.growth && stats.users.growth.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={stats.users.growth}>
@@ -606,15 +746,15 @@ export default function AdminDashboard() {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-[300px] flex items-center justify-center text-emerald-700">
+                  <div className="h-[300px] flex items-center justify-center text-emerald-700 dark:text-emerald-400">
                     <p>No user growth data available</p>
                   </div>
                 )}
               </div>
 
               {/* Products Growth Graph */}
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-xl font-bold text-emerald-900 mb-4">Product Growth</h3>
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-6 border border-slate-200 dark:border-slate-700">
+                <h3 className="text-xl font-semibold text-emerald-900 dark:text-emerald-300 mb-4">Product Growth</h3>
                 {stats.products.growth && stats.products.growth.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={stats.products.growth}>
@@ -644,15 +784,15 @@ export default function AdminDashboard() {
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-[300px] flex items-center justify-center text-emerald-700">
+                  <div className="h-[300px] flex items-center justify-center text-emerald-700 dark:text-emerald-400">
                     <p>No product growth data available</p>
                   </div>
                 )}
               </div>
 
               {/* Sales Orders Graph */}
-              <div className="bg-white rounded-xl shadow-md p-6">
-                <h3 className="text-xl font-bold text-emerald-900 mb-4">Orders Over Time</h3>
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-6 border border-slate-200 dark:border-slate-700">
+                <h3 className="text-xl font-semibold text-emerald-900 dark:text-emerald-300 mb-4">Orders Over Time</h3>
                 {stats.revenue.salesData && stats.revenue.salesData.length > 0 ? (
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={stats.revenue.salesData}>
@@ -680,7 +820,7 @@ export default function AdminDashboard() {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-[300px] flex items-center justify-center text-emerald-700">
+                  <div className="h-[300px] flex items-center justify-center text-emerald-700 dark:text-emerald-400">
                     <p>No order data available</p>
                   </div>
                 )}
@@ -688,33 +828,33 @@ export default function AdminDashboard() {
             </div>
 
             {/* Recent Orders */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h2 className="text-2xl font-bold text-emerald-900 mb-4">Recent Orders</h2>
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-6 border border-slate-200 dark:border-slate-700">
+              <h2 className="text-2xl font-semibold text-emerald-900 dark:text-emerald-300 mb-4">Recent Orders</h2>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-emerald-200">
-                      <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Order ID</th>
-                      <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Customer</th>
-                      <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Amount</th>
-                      <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Status</th>
-                      <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Date</th>
-                      <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Actions</th>
+                    <tr className="border-b border-emerald-200 dark:border-slate-700">
+                      <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Order ID</th>
+                      <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Customer</th>
+                      <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Amount</th>
+                      <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Status</th>
+                      <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Date</th>
+                      <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {stats.recentOrders.map((order) => (
-                      <tr key={order._id} className="border-b border-emerald-100 hover:bg-emerald-50">
+                      <tr key={order._id} className="border-b border-emerald-100 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-700/50">
                         <td className="py-3 px-4">
-                          <Link href={`/admin/orders/${order._id}`} className="text-emerald-600 hover:text-emerald-800 font-mono text-sm">
+                          <Link href={`/admin/orders/${order._id}`} className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 font-mono text-sm">
                             #{order._id.slice(-8).toUpperCase()}
                           </Link>
                         </td>
                         <td className="py-3 px-4">
-                          <p className="font-semibold text-emerald-900">{order.user.name}</p>
-                          <p className="text-sm text-emerald-700">{order.user.email}</p>
+                          <p className="font-semibold text-emerald-900 dark:text-emerald-300">{order.user.name}</p>
+                          <p className="text-sm text-emerald-700 dark:text-emerald-400">{order.user.email}</p>
                         </td>
-                        <td className="py-3 px-4 font-semibold text-emerald-900">${order.totalPrice.toFixed(2)}</td>
+                        <td className="py-3 px-4 font-semibold text-emerald-900 dark:text-emerald-300">${order.totalPrice.toFixed(2)}</td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                             order.orderStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -747,8 +887,8 @@ export default function AdminDashboard() {
 
         {/* Orders Tab */}
         {activeTab === 'orders' && (
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <h2 className="text-2xl font-bold text-emerald-900 mb-4">All Orders</h2>
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <h2 className="text-2xl font-semibold text-emerald-900 mb-4">All Orders</h2>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -820,51 +960,240 @@ export default function AdminDashboard() {
 
         {/* Plants Tab */}
         {activeTab === 'plants' && (
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-emerald-900">All Products</h2>
-              <Link href="/admin/plants/new">
-                <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold">
-                  + Add Product
-                </button>
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {plants.map((plant) => (
-                <div key={plant._id} className="border border-emerald-200 rounded-lg p-4 hover:shadow-lg transition-shadow">
-                  <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden bg-gray-100">
-                    <Image
-                      src={plant.imageUrl}
-                      alt={plant.name}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    />
-                  </div>
-                  <h3 className="font-semibold text-emerald-900 mb-2">{plant.name}</h3>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-emerald-700 text-sm">${plant.price.toFixed(2)}</p>
-                      <p className="text-emerald-700 text-sm">Stock: {plant.stock}</p>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-6 border border-slate-200 dark:border-slate-700">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h2 className="text-2xl font-semibold text-emerald-900 dark:text-emerald-300">All Products</h2>
+              <div className="flex items-center gap-3">
+                <div className="relative" ref={bulkMenuRef}>
+                  <Button
+                    size="sm"
+                    variant={bulkSection ? 'secondary' : 'outline'}
+                    className="flex items-center gap-2"
+                    onClick={() => setIsBulkMenuOpen((prev) => !prev)}
+                  >
+                    {bulkSection ? bulkSectionLabel : 'Add to Section'}
+                    <svg className={`h-4 w-4 transition-transform ${isBulkMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M5 7l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </Button>
+                  {isBulkMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-60 rounded-lg border border-slate-200 bg-white shadow-lg z-20">
+                      <button
+                        type="button"
+                        onClick={() => handleStartBulkSelection('featured')}
+                        className="flex w-full items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-emerald-50"
+                      >
+                        <span>Featured Products</span>
+                        {bulkSection === 'featured' && (
+                          <svg className="h-4 w-4 text-emerald-600" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M16.6667 5.83337L8.12504 14.375L4.16671 10.4167" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleStartBulkSelection('freeDelivery')}
+                        className="flex w-full items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-emerald-50"
+                      >
+                        <span>Free Delivery Picks</span>
+                        {bulkSection === 'freeDelivery' && (
+                          <svg className="h-4 w-4 text-emerald-600" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M16.6667 5.83337L8.12504 14.375L4.16671 10.4167" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </button>
                     </div>
-                    <div className="flex gap-2">
-                      <Link href={`/admin/plants/${plant._id}`}>
-                        <button className="px-3 py-1 text-sm bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200">
-                          Edit
-                        </button>
-                      </Link>
-                    </div>
-                  </div>
+                  )}
                 </div>
-              ))}
+                <Link href="/admin/plants/new">
+                  <Button size="sm" variant="primary">
+                    + Add Product
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {bulkStatus && (
+              <div className={`mb-4 flex items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm ${
+                bulkStatus.type === 'success'
+                  ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                  : 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+              }`}>
+                <span>{bulkStatus.message}</span>
+                <button
+                  type="button"
+                  onClick={() => setBulkStatus(null)}
+                  className="text-xs font-semibold uppercase tracking-wide"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {bulkSection && (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/30 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-emerald-900 dark:text-emerald-300">{bulkSectionLabel}</p>
+                  <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                    {selectedPlantIds.length} selected · Existing items are pre-checked. Uncheck to remove.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleBulkSave();
+                    }}
+                    loading={bulkSaving}
+                    disabled={bulkSaving || !hasBulkChanges}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      cancelBulkSelection();
+                    }}
+                    disabled={bulkSaving}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {plants.map((plant) => {
+                const selectionActive = Boolean(bulkSection);
+                const isSelected = selectedPlantIds.includes(plant._id);
+
+                return (
+                  <div
+                    key={plant._id}
+                    className={`group relative rounded-xl border border-emerald-200/70 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 transition-shadow ${
+                      selectionActive ? 'cursor-pointer hover:shadow-md dark:hover:shadow-slate-900/50' : 'hover:shadow-lg dark:hover:shadow-slate-900/50'
+                    } ${
+                      selectionActive && isSelected ? 'border-emerald-400 dark:border-emerald-500 ring-1 ring-emerald-400 dark:ring-emerald-500 bg-emerald-50/40 dark:bg-emerald-900/30' : ''
+                    }`}
+                    onClick={() => {
+                      if (selectionActive) {
+                        togglePlantSelection(plant._id);
+                      }
+                    }}
+                  >
+                    {selectionActive && (
+                      <div className="absolute top-4 right-4 z-20">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(event) => {
+                            event.stopPropagation();
+                            togglePlantSelection(plant._id);
+                          }}
+                          className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-400"
+                          aria-label={`Toggle ${plant.name} in ${bulkSectionLabel}`}
+                        />
+                      </div>
+                    )}
+
+                    <Link
+                      href={`/admin/plants/${plant._id}`}
+                      className="block"
+                      onClick={(event) => {
+                        if (selectionActive) {
+                          event.preventDefault();
+                        }
+                      }}
+                    >
+                      <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden bg-gray-100">
+                        <Image
+                          src={((() => {
+                            try {
+                              const u = new URL(plant.imageUrl);
+                              if (u.hostname === 'unsplash.com' && u.pathname.startsWith('/photos/')) {
+                                const last = u.pathname.split('/').pop() || '';
+                                const id = last.split('-').pop();
+                                if (id) return `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=600&q=70`;
+                              }
+                              if (u.hostname === 'images.unsplash.com') {
+                                if (!u.search) u.search = '?auto=format&fit=crop&w=600&q=70';
+                                return u.toString();
+                              }
+                            } catch {}
+                            return plant.imageUrl;
+                          })()) ||
+                            'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22 viewBox=%220 0 400 300%22%3E%3Crect width=%22400%22 height=%22300%22 fill=%22%23e5e7eb%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%239ca3af%22 font-size=%2216%22 font-family=%22Arial, sans-serif%22%3ENo Image%3C/text%3E%3C/svg%3E'}
+                          alt={plant.name}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          onError={({ currentTarget }) => {
+                            try {
+                              // @ts-ignore - next/image forwards to underlying img
+                              currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22400%22 height=%22300%22 viewBox=%220 0 400 300%22%3E%3Crect width=%22400%22 height=%22300%22 fill=%22%23e5e7eb%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%239ca3af%22 font-size=%2216%22 font-family=%22Arial, sans-serif%22%3ENo Image%3C/text%3E%3C/svg%3E';
+                            } catch {}
+                          }}
+                        />
+                        {plant.isFeatured && (
+                          <span className="absolute top-3 left-3 rounded-full bg-emerald-600/90 px-2.5 py-1 text-[11px] font-medium text-white shadow-sm">
+                            Featured
+                          </span>
+                        )}
+                        {plant.isFreeDelivery && (
+                          <span className="absolute top-3 right-3 rounded-full bg-blue-600/90 px-2.5 py-1 text-[11px] font-medium text-white shadow-sm">
+                            Free Delivery
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+
+                    <h3 className="font-semibold text-emerald-900 dark:text-emerald-300 mb-2">{plant.name}</h3>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-emerald-700 dark:text-emerald-400 text-sm font-medium">${plant.price.toFixed(2)}</p>
+                        <p className="text-emerald-700 dark:text-emerald-400 text-sm">Stock: {plant.stock}</p>
+                      </div>
+                      {!selectionActive && (
+                        <Link href={`/admin/plants/${plant._id}`}>
+                          <button
+                            className="px-3 py-1 text-sm bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            Edit
+                          </button>
+                        </Link>
+                      )}
+                    </div>
+
+                    {(plant.isFeatured || plant.isFreeDelivery) && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {plant.isFeatured && (
+                          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                            Featured
+                          </span>
+                        )}
+                        {plant.isFreeDelivery && (
+                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                            Free Delivery
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
         {/* Users Tab */}
         {activeTab === 'users' && (
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <h2 className="text-2xl font-bold text-emerald-900 mb-4">All Users</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-6 border border-slate-200 dark:border-slate-700">
+            <h2 className="text-2xl font-semibold text-emerald-900 dark:text-emerald-300 mb-4">All Users</h2>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -1029,9 +1358,9 @@ export default function AdminDashboard() {
 
         {/* Reviews Tab */}
         {activeTab === 'reviews' && (
-          <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-6 border border-slate-200 dark:border-slate-700">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-emerald-900">All Reviews</h2>
+              <h2 className="text-2xl font-semibold text-emerald-900 dark:text-emerald-300">All Reviews</h2>
               <div className="flex gap-2">
                 <select
                   value={reviewsFilter}

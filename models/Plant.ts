@@ -4,9 +4,12 @@ export interface IPlant extends Document {
   name: string;
   description: string;
   price: number;
+  discountPercentage?: number;
   category: string;
   imageUrl: string;
   stock: number;
+  isFeatured?: boolean;
+  isFreeDelivery?: boolean;
   careInstructions?: string;
   sunlight?: string;
   water?: string;
@@ -32,6 +35,20 @@ const PlantSchema: Schema = new Schema(
       type: Number,
       required: [true, 'Price is required'],
       min: [0, 'Price cannot be negative'],
+    },
+    discountPercentage: {
+      type: Number,
+      min: [0, 'Discount cannot be negative'],
+      max: [100, 'Discount cannot exceed 100%'],
+      default: 0,
+    },
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
+    isFreeDelivery: {
+      type: Boolean,
+      default: false,
     },
     category: {
       type: String,

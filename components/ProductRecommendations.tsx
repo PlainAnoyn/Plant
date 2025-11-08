@@ -54,10 +54,10 @@ export default function ProductRecommendations({ plantId, category, limit = 4 }:
   if (loading) {
     return (
       <div className="py-12">
-        <h2 className="text-2xl font-bold text-emerald-900 mb-6">You May Also Like</h2>
+        <h2 className="text-2xl font-bold text-emerald-900 dark:text-emerald-300 mb-6">You May Also Like</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-gray-200 rounded-lg animate-pulse h-64"></div>
+            <div key={i} className="bg-gray-200 dark:bg-slate-700 rounded-lg animate-pulse h-64"></div>
           ))}
         </div>
       </div>
@@ -69,11 +69,11 @@ export default function ProductRecommendations({ plantId, category, limit = 4 }:
   }
 
   return (
-    <div className="py-12 bg-cream-50">
+    <div className="py-12 bg-cream-50 dark:bg-slate-800/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-emerald-900 mb-2">You May Also Like</h2>
-          <p className="text-emerald-700">Discover more plants from the same category</p>
+          <h2 className="text-3xl font-bold text-emerald-900 dark:text-emerald-300 mb-2">You May Also Like</h2>
+          <p className="text-emerald-700 dark:text-emerald-400">Discover more plants from the same category</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -90,7 +90,7 @@ export default function ProductRecommendations({ plantId, category, limit = 4 }:
 
         <div className="text-center mt-8">
           <Link href="/plants">
-            <button className="px-8 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold text-lg">
+            <button className="px-8 py-3 bg-emerald-600 dark:bg-emerald-500 text-white rounded-lg hover:bg-emerald-700 dark:hover:bg-emerald-600 transition-colors font-semibold text-lg">
               View All Plants
             </button>
           </Link>

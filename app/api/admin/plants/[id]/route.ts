@@ -3,8 +3,9 @@ import connectDB from '@/lib/mongodb';
 import Plant from '@/models/Plant';
 import User from '@/models/User';
 import jwt from 'jsonwebtoken';
+import { logAudit } from '@/lib/audit';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET ;
 
 // Helper function to check if user is admin
 async function checkAdmin(request: NextRequest): Promise<{ success: boolean; userId?: string; error?: string }> {
@@ -60,6 +61,10 @@ export async function PATCH(
     const plantId = resolvedParams.id;
 
     const body = await request.json();
+    
+    // Get old plant data for audit log
+    const oldPlant = await Plant.findById(plantId).lean();
+    
     const updatedPlant = await Plant.findByIdAndUpdate(
       plantId,
       { $set: body },
@@ -73,6 +78,18 @@ export async function PATCH(
       );
     }
 
+    // Log audit trail
+    const user = await User.findById(adminCheck.userId).lean();
+    await logAudit({
+      action: 'update',
+      resource: 'plant',
+      resourceId: plantId,
+      userId: adminCheck.userId!,
+      userEmail: user?.email,
+      changes: { old: oldPlant, new: body },
+      request,
+    });
+
     return NextResponse.json({
       success: true,
       plant: {
@@ -80,9 +97,12 @@ export async function PATCH(
         name: updatedPlant.name,
         description: updatedPlant.description,
         price: updatedPlant.price,
+        discountPercentage: updatedPlant.discountPercentage || 0,
         category: updatedPlant.category,
         imageUrl: updatedPlant.imageUrl,
         stock: updatedPlant.stock,
+        isFeatured: updatedPlant.isFeatured || false,
+        isFreeDelivery: updatedPlant.isFreeDelivery || false,
         careInstructions: updatedPlant.careInstructions,
         sunlight: updatedPlant.sunlight,
         water: updatedPlant.water,
@@ -136,6 +156,62 @@ export async function DELETE(
     console.error('Admin delete plant error:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to delete plant' },
+      { status: 500 }
+    );
+  }
+}
+
+// Get single plant (admin only)
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> | { id: string } }
+) {
+  try {
+    await connectDB();
+
+    const adminCheck = await checkAdmin(request);
+    if (!adminCheck.success) {
+      return NextResponse.json(
+        { success: false, error: adminCheck.error },
+        { status: adminCheck.error?.includes('Unauthorized') ? 403 : 401 }
+      );
+    }
+
+    const resolvedParams = await Promise.resolve(params);
+    const plantId = resolvedParams.id;
+
+    const plant = await Plant.findById(plantId).lean();
+    if (!plant) {
+      return NextResponse.json(
+        { success: false, error: 'Plant not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      plant: {
+        _id: plant._id.toString(),
+        name: plant.name,
+        description: plant.description,
+        price: plant.price,
+        discountPercentage: plant.discountPercentage || 0,
+        category: plant.category,
+        imageUrl: plant.imageUrl,
+        stock: plant.stock,
+        isFeatured: plant.isFeatured || false,
+        isFreeDelivery: plant.isFreeDelivery || false,
+        careInstructions: plant.careInstructions,
+        sunlight: plant.sunlight,
+        water: plant.water,
+        createdAt: plant.createdAt,
+        updatedAt: plant.updatedAt,
+      },
+    });
+  } catch (error: any) {
+    console.error('Admin get plant error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to get plant' },
       { status: 500 }
     );
   }

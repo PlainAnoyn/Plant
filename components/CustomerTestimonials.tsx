@@ -57,13 +57,13 @@ const testimonials: Testimonial[] = [
 
 export default function CustomerTestimonials() {
   return (
-    <section className="py-16 bg-cream-50 overflow-hidden">
+    <section className="py-16 bg-cream-50 dark:bg-slate-800/50 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-emerald-900 mb-4">
+          <h2 className="text-3xl md:text-4xl font-semibold text-slate-900 dark:text-slate-100 mb-3">
             What Our Customers Say
           </h2>
-          <p className="text-emerald-800 text-lg max-w-2xl mx-auto">
+          <p className="text-slate-600 dark:text-slate-400 text-base max-w-2xl mx-auto">
             Don't just take our word for it. Here's what our happy customers have to say about their experience with us.
           </p>
         </div>

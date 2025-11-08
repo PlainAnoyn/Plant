@@ -165,10 +165,15 @@ export async function GET(
         throw new Error('Plant not found');
       }
       
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
-        data: plant,
+        data: { ...plant, discountPercentage: (plant as any).discountPercentage || 0 },
       });
+      
+      // Cache for 5 minutes (ISR)
+      response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+      
+      return response;
     } catch (dbError) {
       // Fallback to mock data
       const plant = mockPlants[params.id];
@@ -182,7 +187,7 @@ export async function GET(
       
       return NextResponse.json({
         success: true,
-        data: plant,
+        data: { ...plant, discountPercentage: plant.discountPercentage || 0 },
       });
     }
   } catch (error: any) {

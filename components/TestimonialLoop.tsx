@@ -121,7 +121,7 @@ const TestimonialLoop: React.FC<TestimonialLoopProps> = ({
             minWidth: '280px',
           }}
         >
-          <div className="bg-white rounded-xl shadow-md p-6 border border-emerald-100 h-full">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-md dark:shadow-slate-900/50 p-6 border border-emerald-100 dark:border-slate-700 h-full">
             {/* Rating Stars */}
             <div className="flex gap-1 mb-4">
               {[...Array(5)].map((_, i) => (
@@ -136,20 +136,20 @@ const TestimonialLoop: React.FC<TestimonialLoopProps> = ({
             </div>
 
             {/* Testimonial Text */}
-            <p className="text-emerald-800 mb-6 leading-relaxed text-sm">
+            <p className="text-emerald-800 dark:text-emerald-300 mb-6 leading-relaxed text-sm">
               "{testimonial.text}"
             </p>
 
             {/* Customer Info */}
-            <div className="flex items-center gap-3 pt-4 border-t border-emerald-100">
-              <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-lg flex-shrink-0">
+            <div className="flex items-center gap-3 pt-4 border-t border-emerald-100 dark:border-slate-700">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-700 dark:text-emerald-300 font-bold text-lg flex-shrink-0">
                 {testimonial.name.charAt(0)}
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-emerald-900 truncate">
+                <p className="font-semibold text-emerald-900 dark:text-emerald-200 truncate">
                   {testimonial.name}
                 </p>
-                <p className="text-sm text-emerald-700 truncate">
+                <p className="text-sm text-emerald-700 dark:text-emerald-400 truncate">
                   {testimonial.location}
                 </p>
               </div>
