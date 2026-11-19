@@ -45,7 +45,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .lean()
       .limit(1000);
 
-    const plantRoutes: MetadataRoute.Sitemap = plants.map((plant) => ({
+    const plantRoutes: MetadataRoute.Sitemap = plants.map((plant: any) => ({
       url: `${baseUrl}/plants/${plant._id}`,
       lastModified: plant.updatedAt || new Date(),
       changeFrequency: 'weekly' as const,

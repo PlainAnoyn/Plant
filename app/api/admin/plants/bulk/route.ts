@@ -5,7 +5,7 @@ import User from '@/models/User';
 import jwt from 'jsonwebtoken';
 import { logAudit } from '@/lib/audit';
 
-const JWT_SECRET = process.env.JWT_SECRET ;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 async function checkAdmin(request: NextRequest): Promise<{ success: boolean; userId?: string; error?: string }> {
   const token = request.cookies.get('token')?.value;
@@ -102,7 +102,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      updatedPlants: updatedPlants.map((plant) => ({
+      updatedPlants: updatedPlants.map((plant: any) => ({
         _id: plant._id.toString(),
         isFeatured: Boolean(plant.isFeatured),
         isFreeDelivery: Boolean(plant.isFreeDelivery),

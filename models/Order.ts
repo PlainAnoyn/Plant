@@ -197,7 +197,7 @@ OrderSchema.index({ user: 1, createdAt: -1 });
 OrderSchema.index({ paymentStatus: 1 });
 OrderSchema.index({ orderStatus: 1 });
 
-const Order: Model<IOrder> = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema);
+const Order: any = mongoose.models.Order || mongoose.model<IOrder>('Order', OrderSchema);
 
 export default Order;
 

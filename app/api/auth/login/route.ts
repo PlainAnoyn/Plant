@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
         User.findByIdAndUpdate(adminUser._id, {
           role: 'admin',
           username: 'admin'
-        }).catch((err) => {
+        }).catch((err: any) => {
           console.error('Failed to update admin role in DB:', err);
           // Don't block login even if update fails
         });

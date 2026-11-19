@@ -129,7 +129,7 @@ ReviewSchema.index({ user: 1, plant: 1 }); // Ensure one review per user per pla
 // Compound index to prevent duplicate reviews
 ReviewSchema.index({ user: 1, plant: 1 }, { unique: true });
 
-const Review: Model<IReview> = mongoose.models.Review || mongoose.model<IReview>('Review', ReviewSchema);
+const Review: any = mongoose.models.Review || mongoose.model<IReview>('Review', ReviewSchema);
 
 export default Review;
 

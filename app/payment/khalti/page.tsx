@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import Button from '@/components/ui/Button';
 
-export default function KhaltiPaymentPage() {
+function KhaltiPaymentContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { clearCart } = useCart();
@@ -141,6 +141,21 @@ export default function KhaltiPaymentPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function KhaltiPaymentPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent"></div>
+          <p className="mt-4 text-slate-500 text-sm">Loading...</p>
+        </div>
+      </div>
+    }>
+      <KhaltiPaymentContent />
+    </Suspense>
   );
 }
 

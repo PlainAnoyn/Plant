@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: finalRecommendations.map((plant) => ({
+      data: finalRecommendations.map((plant: any) => ({
         _id: plant._id.toString(),
         name: plant.name,
         price: plant.price,

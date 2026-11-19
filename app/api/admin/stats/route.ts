@@ -191,7 +191,7 @@ export async function GET(request: NextRequest) {
           total: revenue,
           salesData: salesDataFormatted,
         },
-        recentOrders: recentOrders.map((order) => ({
+        recentOrders: recentOrders.map((order: any) => ({
           _id: order._id.toString(),
           user: {
             name: (order.user as any).name,

@@ -88,7 +88,7 @@ const PlantSchema: Schema = new Schema(
   }
 );
 
-const Plant: Model<IPlant> = mongoose.models.Plant || mongoose.model<IPlant>('Plant', PlantSchema);
+const Plant: any = mongoose.models.Plant || mongoose.model<IPlant>('Plant', PlantSchema);
 
 export default Plant;
 

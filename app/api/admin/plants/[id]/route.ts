@@ -5,7 +5,7 @@ import User from '@/models/User';
 import jwt from 'jsonwebtoken';
 import { logAudit } from '@/lib/audit';
 
-const JWT_SECRET = process.env.JWT_SECRET ;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 // Helper function to check if user is admin
 async function checkAdmin(request: NextRequest): Promise<{ success: boolean; userId?: string; error?: string }> {

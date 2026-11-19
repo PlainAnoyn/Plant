@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      orders: orders.map((order) => ({
+      orders: orders.map((order: any) => ({
         _id: order._id.toString(),
         user: {
           _id: (order.user as any)._id.toString(),

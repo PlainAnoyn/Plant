@@ -219,7 +219,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      orders: orders.map((order) => ({
+      orders: orders.map((order: any) => ({
         _id: order._id.toString(),
         orderItems: order.orderItems,
         shippingAddress: order.shippingAddress,

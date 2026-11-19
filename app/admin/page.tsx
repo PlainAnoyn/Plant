@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
@@ -127,7 +127,7 @@ interface Review {
   updatedAt: string;
 }
 
-export default function AdminDashboard() {
+function AdminDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, user, loading: authLoading } = useAuth();
@@ -1675,6 +1675,21 @@ export default function AdminDashboard() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AdminDashboard() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent"></div>
+          <p className="mt-4 text-slate-500 text-sm">Loading...</p>
+        </div>
+      </div>
+    }>
+      <AdminDashboardContent />
+    </Suspense>
   );
 }
 
