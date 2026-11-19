@@ -64,7 +64,7 @@ export default function CustomerTestimonials() {
             What Our Customers Say
           </h2>
           <p className="text-slate-600 dark:text-slate-400 text-base max-w-2xl mx-auto">
-            Don't just take our word for it. Here's what our happy customers have to say about their experience with us.
+            Don&apos;t just take our word for it. Here&apos;s what our happy customers have to say about their experience with us.
           </p>
         </div>
 

@@ -12,16 +12,15 @@ import ThemeToggle from './ThemeToggle';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { isAuthenticated, user, logout } = useAuth();
+  const { wishlist } = useWishlist();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   // Don't show regular navbar for admin routes (sidebar will be shown instead)
   if (pathname?.startsWith('/admin')) {
     return null;
   }
-
-  const router = useRouter();
-  const { isAuthenticated, user, logout } = useAuth();
-  const { wishlist } = useWishlist();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();

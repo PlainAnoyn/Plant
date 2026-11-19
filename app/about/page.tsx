@@ -32,7 +32,7 @@ export default function AboutPage() {
             <p className="text-gray-600 mb-6">
               We are committed to providing excellent customer service and ensuring that every plant 
               you purchase from us meets our high standards of quality. Your satisfaction is our 
-              top priority, and we're here to help you succeed in your plant journey.
+              top priority, and we&apos;re here to help you succeed in your plant journey.
             </p>
             
             <div className="mt-8 p-6 bg-primary-50 rounded-lg">

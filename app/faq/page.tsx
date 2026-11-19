@@ -59,7 +59,7 @@ export default function FAQPage() {
             Frequently Asked Questions
           </h1>
           <p className="text-emerald-800 text-lg max-w-2xl mx-auto">
-            Got questions? We've got answers. Find everything you need to know about our plants and services.
+            Got questions? We&apos;ve got answers. Find everything you need to know about our plants and services.
           </p>
         </div>
 
@@ -115,7 +115,7 @@ export default function FAQPage() {
             Still have questions?
           </p>
           <p className="text-emerald-700 mb-6">
-            We're here to help! Reach out to us and we'll get back to you as soon as possible.
+            We&apos;re here to help! Reach out to us and we&apos;ll get back to you as soon as possible.
           </p>
           <Link href="/contact">
             <Button variant="primary" size="lg" className="rounded-full px-8">

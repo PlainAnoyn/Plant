@@ -137,7 +137,7 @@ const TestimonialLoop: React.FC<TestimonialLoopProps> = ({
 
             {/* Testimonial Text */}
             <p className="text-emerald-800 dark:text-emerald-300 mb-6 leading-relaxed text-sm">
-              "{testimonial.text}"
+              &quot;{testimonial.text}&quot;
             </p>
 
             {/* Customer Info */}

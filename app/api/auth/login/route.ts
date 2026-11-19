@@ -3,13 +3,16 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is not set');
-}
-
 export async function POST(request: NextRequest) {
   try {
+    const JWT_SECRET = process.env.JWT_SECRET;
+    if (!JWT_SECRET) {
+      return NextResponse.json(
+        { success: false, error: 'JWT_SECRET environment variable is not set. Please configure it in your .env.local file.' },
+        { status: 500 }
+      );
+    }
+
     await connectDB();
     console.log('Database connected');
 

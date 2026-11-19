@@ -136,11 +136,12 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [plants, setPlants] = useState<Plant[]>([]);
-  const [bulkSection, setBulkSection] = useState<'featured' | 'freeDelivery' | null>(null);
+  const [bulkSection, setBulkSection] = useState<'featured' | 'freeDelivery' | 'delete' | null>(null);
   const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>([]);
   const [initialBulkSelection, setInitialBulkSelection] = useState<string[]>([]);
   const [isBulkMenuOpen, setIsBulkMenuOpen] = useState(false);
   const [bulkSaving, setBulkSaving] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkStatus, setBulkStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const bulkMenuRef = useRef<HTMLDivElement | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -416,24 +417,35 @@ export default function AdminDashboard() {
     setInitialBulkSelection([]);
     setIsBulkMenuOpen(false);
     setBulkSaving(false);
+    setBulkDeleting(false);
   };
 
-  const handleStartBulkSelection = (section: 'featured' | 'freeDelivery') => {
+  const handleStartBulkSelection = (section: 'featured' | 'freeDelivery' | 'delete') => {
     if (bulkSection === section) {
       cancelBulkSelection();
       setBulkStatus(null);
       return;
     }
 
-    const initialSelection = plants
-      .filter((plant) => (section === 'featured' ? plant.isFeatured : plant.isFreeDelivery))
-      .map((plant) => plant._id);
+    if (section === 'delete') {
+      // For delete mode, start with empty selection
+      setBulkSection('delete');
+      setInitialBulkSelection([]);
+      setSelectedPlantIds([]);
+      setBulkStatus(null);
+      setIsBulkMenuOpen(false);
+    } else {
+      // For featured/freeDelivery, pre-select existing items
+      const initialSelection = plants
+        .filter((plant) => (section === 'featured' ? plant.isFeatured : plant.isFreeDelivery))
+        .map((plant) => plant._id);
 
-    setBulkSection(section);
-    setInitialBulkSelection(initialSelection);
-    setSelectedPlantIds(initialSelection);
-    setBulkStatus(null);
-    setIsBulkMenuOpen(false);
+      setBulkSection(section);
+      setInitialBulkSelection(initialSelection);
+      setSelectedPlantIds(initialSelection);
+      setBulkStatus(null);
+      setIsBulkMenuOpen(false);
+    }
   };
 
   const togglePlantSelection = (plantId: string) => {
@@ -442,8 +454,61 @@ export default function AdminDashboard() {
     );
   };
 
+  const handleBulkDelete = async () => {
+    if (!bulkSection || bulkSection !== 'delete' || selectedPlantIds.length === 0) {
+      return;
+    }
+
+    if (!confirm(`Are you sure you want to delete ${selectedPlantIds.length} product(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    setBulkDeleting(true);
+
+    try {
+      // Delete all selected plants
+      const deletePromises = selectedPlantIds.map((plantId) =>
+        fetch(`/api/admin/plants/${plantId}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        })
+      );
+
+      const responses = await Promise.all(deletePromises);
+      const results = await Promise.all(responses.map((r) => r.json()));
+
+      const failed = results.filter((r) => !r.success);
+      if (failed.length > 0) {
+        throw new Error(`Failed to delete ${failed.length} product(s).`);
+      }
+
+      // Remove deleted plants from state
+      setPlants((prev) => prev.filter((plant) => !selectedPlantIds.includes(plant._id)));
+
+      cancelBulkSelection();
+      setBulkStatus({
+        type: 'success',
+        message: `Successfully deleted ${selectedPlantIds.length} product(s).`,
+      });
+    } catch (error: any) {
+      console.error('Bulk delete error:', error);
+      setBulkStatus({
+        type: 'error',
+        message: error?.message || 'Failed to delete products. Please try again.',
+      });
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const handleBulkSave = async () => {
     if (!bulkSection) {
+      return;
+    }
+
+    // Handle delete mode separately
+    if (bulkSection === 'delete') {
+      await handleBulkDelete();
       return;
     }
 
@@ -512,12 +577,16 @@ export default function AdminDashboard() {
       ? 'Featured Products'
       : bulkSection === 'freeDelivery'
       ? 'Free Delivery Picks'
+      : bulkSection === 'delete'
+      ? 'Delete Products'
       : '';
 
   const hasBulkChanges = bulkSection
-    ? selectedPlantIds.length !== initialBulkSelection.length ||
-      selectedPlantIds.some((id) => !initialBulkSelection.includes(id)) ||
-      initialBulkSelection.some((id) => !selectedPlantIds.includes(id))
+    ? bulkSection === 'delete'
+      ? selectedPlantIds.length > 0
+      : selectedPlantIds.length !== initialBulkSelection.length ||
+        selectedPlantIds.some((id) => !initialBulkSelection.includes(id)) ||
+        initialBulkSelection.some((id) => !selectedPlantIds.includes(id))
     : false;
  
   if (!mounted || authLoading) {
@@ -543,7 +612,7 @@ export default function AdminDashboard() {
         <div className="text-center">
           <div className="text-6xl mb-4">🚫</div>
           <h2 className="text-2xl font-semibold text-emerald-900 dark:text-emerald-300 mb-2">Access Denied</h2>
-          <p className="text-emerald-700 dark:text-emerald-400 mb-6">You don't have permission to access this page.</p>
+          <p className="text-emerald-700 dark:text-emerald-400 mb-6">You don&apos;t have permission to access this page.</p>
           <p className="text-sm text-emerald-600 dark:text-emerald-500 mb-4">Current role: {user.role || 'none'}</p>
           <Link href="/">
             <button className="px-6 py-3 bg-emerald-600 dark:bg-emerald-500 text-white rounded-lg hover:bg-emerald-700 dark:hover:bg-emerald-600 transition-colors">
@@ -887,38 +956,38 @@ export default function AdminDashboard() {
 
         {/* Orders Tab */}
         {activeTab === 'orders' && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-2xl font-semibold text-emerald-900 mb-4">All Orders</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm dark:shadow-slate-900/50 p-6 border border-slate-200 dark:border-slate-700">
+            <h2 className="text-2xl font-semibold text-emerald-900 dark:text-emerald-300 mb-4">All Orders</h2>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-emerald-200">
-                    <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Order ID</th>
-                    <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Customer</th>
-                    <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Amount</th>
-                    <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Status</th>
-                    <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Tracking</th>
-                    <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Actions</th>
+                  <tr className="border-b border-emerald-200 dark:border-slate-700">
+                    <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Order ID</th>
+                    <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Customer</th>
+                    <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Amount</th>
+                    <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Status</th>
+                    <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Tracking</th>
+                    <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {orders.map((order) => (
-                    <tr key={order._id} className="border-b border-emerald-100 hover:bg-emerald-50">
+                    <tr key={order._id} className="border-b border-emerald-100 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-700/50">
                       <td className="py-3 px-4">
-                        <Link href={`/admin/orders/${order._id}`} className="text-emerald-600 hover:text-emerald-800 font-mono text-sm">
+                        <Link href={`/admin/orders/${order._id}`} className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 font-mono text-sm">
                           #{order._id.slice(-8).toUpperCase()}
                         </Link>
                       </td>
                       <td className="py-3 px-4">
-                        <p className="font-semibold text-emerald-900">{order.user.name}</p>
-                        <p className="text-sm text-emerald-700">{order.user.email}</p>
+                        <p className="font-semibold text-emerald-900 dark:text-emerald-300">{order.user.name}</p>
+                        <p className="text-sm text-emerald-700 dark:text-emerald-400">{order.user.email}</p>
                       </td>
-                      <td className="py-3 px-4 font-semibold text-emerald-900">${order.totalPrice.toFixed(2)}</td>
+                      <td className="py-3 px-4 font-semibold text-emerald-900 dark:text-emerald-300">${order.totalPrice.toFixed(2)}</td>
                       <td className="py-3 px-4">
                         <select
                           value={order.orderStatus}
                           onChange={(e) => updateOrderStatus(order._id, e.target.value, order.trackingNumber)}
-                          className="px-3 py-1 rounded-lg border border-emerald-300 text-sm font-semibold bg-white"
+                          className="px-3 py-1 rounded-lg border border-emerald-300 dark:border-slate-600 text-sm font-semibold bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
                         >
                           <option value="pending">Pending</option>
                           <option value="processing">Processing</option>
@@ -929,7 +998,7 @@ export default function AdminDashboard() {
                       </td>
                       <td className="py-3 px-4">
                         {order.trackingNumber ? (
-                          <span className="font-mono text-sm text-emerald-700">{order.trackingNumber}</span>
+                          <span className="font-mono text-sm text-emerald-700 dark:text-emerald-400">{order.trackingNumber}</span>
                         ) : (
                           <input
                             type="text"
@@ -939,13 +1008,13 @@ export default function AdminDashboard() {
                                 updateOrderStatus(order._id, order.orderStatus, e.target.value);
                               }
                             }}
-                            className="px-2 py-1 text-sm border border-emerald-300 rounded w-32"
+                            className="px-2 py-1 text-sm border border-emerald-300 dark:border-slate-600 rounded w-32 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500"
                           />
                         )}
                       </td>
                       <td className="py-3 px-4">
                         <Link href={`/admin/orders/${order._id}`}>
-                          <button className="text-emerald-600 hover:text-emerald-800 text-sm font-semibold">
+                          <button className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 text-sm font-semibold">
                             View Details
                           </button>
                         </Link>
@@ -977,15 +1046,15 @@ export default function AdminDashboard() {
                     </svg>
                   </Button>
                   {isBulkMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-60 rounded-lg border border-slate-200 bg-white shadow-lg z-20">
+                    <div className="absolute right-0 mt-2 w-60 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg dark:shadow-slate-900/50 z-20">
                       <button
                         type="button"
                         onClick={() => handleStartBulkSelection('featured')}
-                        className="flex w-full items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-emerald-50"
+                        className="flex w-full items-center justify-between px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700"
                       >
                         <span>Featured Products</span>
                         {bulkSection === 'featured' && (
-                          <svg className="h-4 w-4 text-emerald-600" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <svg className="h-4 w-4 text-emerald-600 dark:text-emerald-400" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M16.6667 5.83337L8.12504 14.375L4.16671 10.4167" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         )}
@@ -993,11 +1062,24 @@ export default function AdminDashboard() {
                       <button
                         type="button"
                         onClick={() => handleStartBulkSelection('freeDelivery')}
-                        className="flex w-full items-center justify-between px-4 py-2 text-sm text-slate-700 hover:bg-emerald-50"
+                        className="flex w-full items-center justify-between px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-slate-700"
                       >
                         <span>Free Delivery Picks</span>
                         {bulkSection === 'freeDelivery' && (
-                          <svg className="h-4 w-4 text-emerald-600" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <svg className="h-4 w-4 text-emerald-600 dark:text-emerald-400" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M16.6667 5.83337L8.12504 14.375L4.16671 10.4167" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </button>
+                      <div className="border-t border-slate-200 dark:border-slate-700 my-1"></div>
+                      <button
+                        type="button"
+                        onClick={() => handleStartBulkSelection('delete')}
+                        className="flex w-full items-center justify-between px-4 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                      >
+                        <span>Delete Products</span>
+                        {bulkSection === 'delete' && (
+                          <svg className="h-4 w-4 text-red-600 dark:text-red-400" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M16.6667 5.83337L8.12504 14.375L4.16671 10.4167" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
                         )}
@@ -1031,25 +1113,38 @@ export default function AdminDashboard() {
             )}
 
             {bulkSection && (
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/30 px-4 py-3">
+              <div className={`mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 ${
+                bulkSection === 'delete'
+                  ? 'border-red-200 dark:border-red-800 bg-red-50/60 dark:bg-red-900/30'
+                  : 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/30'
+              }`}>
                 <div>
-                  <p className="text-sm font-medium text-emerald-900 dark:text-emerald-300">{bulkSectionLabel}</p>
-                  <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                    {selectedPlantIds.length} selected · Existing items are pre-checked. Uncheck to remove.
+                  <p className={`text-sm font-medium ${
+                    bulkSection === 'delete'
+                      ? 'text-red-900 dark:text-red-300'
+                      : 'text-emerald-900 dark:text-emerald-300'
+                  }`}>{bulkSectionLabel}</p>
+                  <p className={`text-xs ${
+                    bulkSection === 'delete'
+                      ? 'text-red-700 dark:text-red-400'
+                      : 'text-emerald-700 dark:text-emerald-400'
+                  }`}>
+                    {selectedPlantIds.length} selected {bulkSection === 'delete' ? '· Select products to delete' : '· Existing items are pre-checked. Uncheck to remove.'}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
-                    variant="primary"
+                    variant={bulkSection === 'delete' ? 'outline' : 'primary'}
                     onClick={(event) => {
                       event.stopPropagation();
                       handleBulkSave();
                     }}
-                    loading={bulkSaving}
-                    disabled={bulkSaving || !hasBulkChanges}
+                    loading={bulkSaving || bulkDeleting}
+                    disabled={bulkSaving || bulkDeleting || !hasBulkChanges}
+                    className={bulkSection === 'delete' ? 'border-red-300 dark:border-red-700 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50' : ''}
                   >
-                    Save
+                    {bulkSection === 'delete' ? 'Delete Selected' : 'Save'}
                   </Button>
                   <Button
                     size="sm"
@@ -1058,7 +1153,7 @@ export default function AdminDashboard() {
                       event.stopPropagation();
                       cancelBulkSelection();
                     }}
-                    disabled={bulkSaving}
+                    disabled={bulkSaving || bulkDeleting}
                   >
                     Cancel
                   </Button>
@@ -1077,7 +1172,11 @@ export default function AdminDashboard() {
                     className={`group relative rounded-xl border border-emerald-200/70 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 transition-shadow ${
                       selectionActive ? 'cursor-pointer hover:shadow-md dark:hover:shadow-slate-900/50' : 'hover:shadow-lg dark:hover:shadow-slate-900/50'
                     } ${
-                      selectionActive && isSelected ? 'border-emerald-400 dark:border-emerald-500 ring-1 ring-emerald-400 dark:ring-emerald-500 bg-emerald-50/40 dark:bg-emerald-900/30' : ''
+                      selectionActive && isSelected
+                        ? bulkSection === 'delete'
+                          ? 'border-red-400 dark:border-red-500 ring-1 ring-red-400 dark:ring-red-500 bg-red-50/40 dark:bg-red-900/30'
+                          : 'border-emerald-400 dark:border-emerald-500 ring-1 ring-emerald-400 dark:ring-emerald-500 bg-emerald-50/40 dark:bg-emerald-900/30'
+                        : ''
                     }`}
                     onClick={() => {
                       if (selectionActive) {
@@ -1094,7 +1193,11 @@ export default function AdminDashboard() {
                             event.stopPropagation();
                             togglePlantSelection(plant._id);
                           }}
-                          className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-400"
+                          className={`h-4 w-4 rounded ${
+                            bulkSection === 'delete'
+                              ? 'border-red-300 text-red-600 focus:ring-red-400'
+                              : 'border-emerald-300 text-emerald-600 focus:ring-emerald-400'
+                          }`}
                           aria-label={`Toggle ${plant.name} in ${bulkSectionLabel}`}
                         />
                       </div>
@@ -1197,19 +1300,19 @@ export default function AdminDashboard() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-emerald-200">
-                    <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Name</th>
-                    <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Email</th>
-                    <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Username</th>
-                    <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Role</th>
-                    <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Email Verified</th>
-                    <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Created</th>
-                    <th className="text-left py-3 px-4 text-emerald-900 font-semibold">Actions</th>
+                  <tr className="border-b border-emerald-200 dark:border-slate-700">
+                    <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Name</th>
+                    <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Email</th>
+                    <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Username</th>
+                    <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Role</th>
+                    <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Email Verified</th>
+                    <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Created</th>
+                    <th className="text-left py-3 px-4 text-emerald-900 dark:text-emerald-300 font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((userItem) => (
-                    <tr key={userItem._id} className="border-b border-emerald-100 hover:bg-emerald-50">
+                    <tr key={userItem._id} className="border-b border-emerald-100 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-slate-700/50">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
                           {userItem.profilePicture ? (
@@ -1221,15 +1324,15 @@ export default function AdminDashboard() {
                               className="w-8 h-8 rounded-full object-cover"
                             />
                           ) : (
-                            <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white text-sm font-semibold">
+                            <div className="w-8 h-8 rounded-full bg-emerald-600 dark:bg-emerald-500 flex items-center justify-center text-white text-sm font-semibold">
                               {userItem.name.charAt(0).toUpperCase()}
                             </div>
                           )}
-                          <span className="font-semibold text-emerald-900">{userItem.name}</span>
+                          <span className="font-semibold text-emerald-900 dark:text-emerald-300">{userItem.name}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-emerald-700">{userItem.email}</td>
-                      <td className="py-3 px-4 text-emerald-700">{userItem.username || '-'}</td>
+                      <td className="py-3 px-4 text-emerald-700 dark:text-emerald-400">{userItem.email}</td>
+                      <td className="py-3 px-4 text-emerald-700 dark:text-emerald-400">{userItem.username || '-'}</td>
                       <td className="py-3 px-4">
                         <select
                           value={userItem.role}
@@ -1257,7 +1360,7 @@ export default function AdminDashboard() {
                               alert('Failed to update user role. Please try again.');
                             }
                           }}
-                          className="px-3 py-1 rounded-lg border border-emerald-300 text-sm font-semibold bg-white"
+                          className="px-3 py-1 rounded-lg border border-emerald-300 dark:border-slate-600 text-sm font-semibold bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
                         >
                           <option value="user">User</option>
                           <option value="moderator">Moderator</option>
@@ -1267,13 +1370,13 @@ export default function AdminDashboard() {
                       <td className="py-3 px-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                           userItem.emailVerified
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                            : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
                         }`}>
                           {userItem.emailVerified ? 'Verified' : 'Not Verified'}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-sm text-emerald-700">
+                      <td className="py-3 px-4 text-sm text-emerald-700 dark:text-emerald-400">
                         {new Date(userItem.createdAt).toLocaleDateString()}
                       </td>
                       <td className="py-3 px-4">
@@ -1289,7 +1392,7 @@ export default function AdminDashboard() {
                                   updateUserBlacklist(userItem._id, false);
                                 }
                               }}
-                              className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold hover:bg-green-700"
+                              className="px-3 py-1 bg-green-600 dark:bg-green-500 text-white rounded text-sm font-semibold hover:bg-green-700 dark:hover:bg-green-600"
                             >
                               Unblacklist
                             </button>
@@ -1305,7 +1408,7 @@ export default function AdminDashboard() {
                                   updateUserBlacklist(userItem._id, true, reason);
                                 }
                               }}
-                              className="px-3 py-1 bg-yellow-600 text-white rounded text-sm font-semibold hover:bg-yellow-700"
+                              className="px-3 py-1 bg-yellow-600 dark:bg-yellow-500 text-white rounded text-sm font-semibold hover:bg-yellow-700 dark:hover:bg-yellow-600"
                             >
                               Blacklist
                             </button>
@@ -1337,13 +1440,13 @@ export default function AdminDashboard() {
                                 }
                               }
                             }}
-                            className="px-3 py-1 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700"
+                            className="px-3 py-1 bg-red-600 dark:bg-red-500 text-white rounded text-sm font-semibold hover:bg-red-700 dark:hover:bg-red-600"
                           >
                             Delete
                           </button>
                         </div>
                         {userItem.isBlacklisted && (
-                          <span className="block mt-1 text-xs text-red-600 font-semibold">
+                          <span className="block mt-1 text-xs text-red-600 dark:text-red-400 font-semibold">
                             Blacklisted
                           </span>
                         )}
@@ -1368,7 +1471,7 @@ export default function AdminDashboard() {
                     setReviewsFilter(e.target.value as 'all' | 'blocked' | 'active');
                     setReviewsPage(1);
                   }}
-                  className="px-3 py-2 rounded-lg border border-emerald-300 text-sm font-semibold bg-white"
+                  className="px-3 py-2 rounded-lg border border-emerald-300 dark:border-slate-600 text-sm font-semibold bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100"
                 >
                   <option value="all">All Reviews</option>
                   <option value="active">Active</option>

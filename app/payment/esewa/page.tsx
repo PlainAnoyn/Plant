@@ -107,8 +107,8 @@ export default function EsewaPaymentPage() {
 
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <p className="text-sm text-yellow-800">
-              <strong>Note:</strong> This is a demo payment. In production, you would integrate with eSewa's actual payment gateway.
-              You'll need to:
+              <strong>Note:</strong> This is a demo payment. In production, you would integrate with eSewa&apos;s actual payment gateway.
+              You&apos;ll need to:
             </p>
             <ul className="text-sm text-yellow-700 mt-2 list-disc list-inside space-y-1">
               <li>Get eSewa merchant credentials</li>

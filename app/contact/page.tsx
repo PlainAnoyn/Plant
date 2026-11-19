@@ -67,7 +67,7 @@ export default function ContactPage() {
               Get In Touch
             </h1>
             <p className="text-lg text-emerald-700 max-w-2xl mx-auto">
-              Have a question or need help? We're here to assist you. Fill out the form below and we'll get back to you as soon as possible.
+              Have a question or need help? We&apos;re here to assist you. Fill out the form below and we&apos;ll get back to you as soon as possible.
             </p>
           </div>
 
@@ -143,7 +143,7 @@ export default function ContactPage() {
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
-                    <span>Thank you! Your message has been sent successfully. We'll get back to you soon.</span>
+                    <span>Thank you! Your message has been sent successfully. We&apos;ll get back to you soon.</span>
                   </div>
                 </div>
               )}
@@ -243,7 +243,7 @@ export default function ContactPage() {
               <div className="border-b border-emerald-100 pb-4">
                 <h3 className="font-semibold text-emerald-900 mb-2">How do I place an order?</h3>
                 <p className="text-emerald-700">
-                  Simply browse our collection, add items to your cart, and proceed to checkout. You'll need to create an account and provide shipping information.
+                  Simply browse our collection, add items to your cart, and proceed to checkout. You&apos;ll need to create an account and provide shipping information.
                 </p>
               </div>
               <div className="border-b border-emerald-100 pb-4">
@@ -261,7 +261,7 @@ export default function ContactPage() {
               <div className="border-b border-emerald-100 pb-4">
                 <h3 className="font-semibold text-emerald-900 mb-2">Can I return or exchange a plant?</h3>
                 <p className="text-emerald-700">
-                  Yes! If you're not satisfied with your purchase, you can return it within 7 days of delivery. Plants must be in their original condition.
+                  Yes! If you&apos;re not satisfied with your purchase, you can return it within 7 days of delivery. Plants must be in their original condition.
                 </p>
               </div>
               <div>
